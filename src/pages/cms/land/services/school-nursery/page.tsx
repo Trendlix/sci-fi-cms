@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -47,7 +47,6 @@ const LandSchoolNurseryService = () => {
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
     const currentData = data?.[language] ?? null;
-    const hasInitialized = useRef(false);
     const form = useForm<LandSchoolNurseryFormValues>({
         defaultValues: getEmptySchoolNurseryValues(),
         resolver: zodResolver(LandSchoolNurseryZodSchema),
@@ -57,12 +56,11 @@ const LandSchoolNurseryService = () => {
     const nurseryValue = useWatch({ control: form.control, name: "nursery" });
 
     useEffect(() => {
-        hasInitialized.current = false;
         void get();
-    }, [get, language]);
+    }, [get, language, form]);
 
     useEffect(() => {
-        if (currentData === null || hasInitialized.current) {
+        if (currentData === null) {
             return;
         }
         form.reset({
@@ -83,7 +81,6 @@ const LandSchoolNurseryService = () => {
                 },
             },
         });
-        hasInitialized.current = true;
     }, [currentData, form]);
 
     const onSubmit = async (values: LandSchoolNurseryFormValues) => {
@@ -111,102 +108,106 @@ const LandSchoolNurseryService = () => {
         });
     };
 
-    if (getLoading) {
-        return (
-            <div className={cn("space-y-4", isRtl && "home-rtl")}>
-                <CommonLanguageSwitcherCheckbox />
-                <div className="space-y-2">
-                    <Skeleton className="h-7 w-40" />
-                    <Skeleton className="h-4 w-64" />
-                </div>
-                <Skeleton className="h-28 w-full" />
-                <Skeleton className="h-10 w-full" />
-            </div>
-        );
-    }
-
     const renderSection = (key: "schoolTrips" | "nursery", label: string) => {
         const sectionValue = key === "schoolTrips" ? schoolTripsValue : nurseryValue;
         return (
-        <div className="space-y-3 rounded-2xl border border-white/15 bg-white/5 p-4">
-            <h2 className="text-lg font-semibold text-white">{label}</h2>
-            <FieldGroup className="grid gap-4 md:grid-cols-2">
-                <Field className="md:col-span-2">
-                    <FieldLabel htmlFor={`${key}-description`} className="text-white/80">
-                        Description <span className="text-white">*</span>
-                    </FieldLabel>
-                    <FieldContent>
-                        <BasicRichEditor
-                            name={`${key}.description`}
-                            value={sectionValue?.description ?? ""}
-                        />
-                        <FieldError errors={[form.formState.errors[key]?.description]} />
-                    </FieldContent>
-                </Field>
-                <Field>
-                    <FieldLabel htmlFor={`${key}-icon`} className="text-white/80">
-                        Highlight icon <span className="text-white">*</span>
-                    </FieldLabel>
-                    <FieldContent>
-                        <Input
-                            id={`${key}-icon`}
-                            placeholder="Icon"
-                            className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                            {...form.register(`${key}.highlights.icon`)}
-                        />
-                        <FieldError errors={[form.formState.errors[key]?.highlights?.icon]} />
-                    </FieldContent>
-                </Field>
-                <Field>
-                    <FieldLabel htmlFor={`${key}-title`} className="text-white/80">
-                        Highlight title <span className="text-white">*</span>
-                    </FieldLabel>
-                    <FieldContent>
-                        <Input
-                            id={`${key}-title`}
-                            placeholder="Title"
-                            className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                            {...form.register(`${key}.highlights.title`)}
-                        />
-                        <FieldError errors={[form.formState.errors[key]?.highlights?.title]} />
-                    </FieldContent>
-                </Field>
-                <Field className="md:col-span-2">
-                    <FieldLabel htmlFor={`${key}-highlight-description`} className="text-white/80">
-                        Highlight description <span className="text-white">*</span>
-                    </FieldLabel>
-                    <FieldContent>
-                        <BasicRichEditor
-                            name={`${key}.highlights.description`}
-                            value={sectionValue?.highlights?.description ?? ""}
-                        />
-                        <FieldError errors={[form.formState.errors[key]?.highlights?.description]} />
-                    </FieldContent>
-                </Field>
-            </FieldGroup>
-        </div>
-    );
+            <div className="space-y-3 rounded-2xl border border-white/15 bg-white/5 p-4">
+                <h2 className="text-lg font-semibold text-white">{label}</h2>
+                <FieldGroup className="grid gap-4 md:grid-cols-2">
+                    <Field className="md:col-span-2">
+                        <FieldLabel htmlFor={`${key}-description`} className="text-white/80">
+                            Description <span className="text-white">*</span>
+                        </FieldLabel>
+                        <FieldContent>
+                            <BasicRichEditor
+                                name={`${key}.description`}
+                                value={sectionValue?.description ?? ""}
+                            />
+                            <FieldError errors={[form.formState.errors[key]?.description]} />
+                        </FieldContent>
+                    </Field>
+                    <Field>
+                        <FieldLabel htmlFor={`${key}-icon`} className="text-white/80">
+                            Highlight icon <span className="text-white">*</span>
+                        </FieldLabel>
+                        <FieldContent>
+                            <Input
+                                id={`${key}-icon`}
+                                placeholder="Icon"
+                                className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                {...form.register(`${key}.highlights.icon`)}
+                            />
+                            <FieldError errors={[form.formState.errors[key]?.highlights?.icon]} />
+                        </FieldContent>
+                    </Field>
+                    <Field>
+                        <FieldLabel htmlFor={`${key}-title`} className="text-white/80">
+                            Highlight title <span className="text-white">*</span>
+                        </FieldLabel>
+                        <FieldContent>
+                            <Input
+                                id={`${key}-title`}
+                                placeholder="Title"
+                                className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                {...form.register(`${key}.highlights.title`)}
+                            />
+                            <FieldError errors={[form.formState.errors[key]?.highlights?.title]} />
+                        </FieldContent>
+                    </Field>
+                    <Field className="md:col-span-2">
+                        <FieldLabel htmlFor={`${key}-highlight-description`} className="text-white/80">
+                            Highlight description <span className="text-white">*</span>
+                        </FieldLabel>
+                        <FieldContent>
+                            <BasicRichEditor
+                                name={`${key}.highlights.description`}
+                                value={sectionValue?.highlights?.description ?? ""}
+                            />
+                            <FieldError errors={[form.formState.errors[key]?.highlights?.description]} />
+                        </FieldContent>
+                    </Field>
+                </FieldGroup>
+            </div>
+        );
     };
 
     return (
         <FormProvider {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
-                <CommonLanguageSwitcherCheckbox />
-                <div className="space-y-1 text-white">
-                    <h1 className="text-2xl font-semibold text-white">School Trips & Nursery</h1>
-                    <p className="text-sm text-white/70">Add school trips and nursery details</p>
-                </div>
-                {renderSection("schoolTrips", "School Trips")}
-                {renderSection("nursery", "Nursery")}
-                <Button
-                    type="submit"
-                    className="w-full bg-white/90 text-black hover:bg-white"
-                    disabled={getLoading || updateLoading || !form.formState.isValid}
-                >
-                    {updateLoading ? "Saving..." : "Save"}
-                </Button>
-            </form>
+            {getLoading ? (
+                <LoadingSkeleton isRtl={isRtl} />
+            ) : (
+                <form onSubmit={form.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
+                    <CommonLanguageSwitcherCheckbox />
+                    <div className="space-y-1 text-white">
+                        <h1 className="text-2xl font-semibold text-white">School Trips & Nursery</h1>
+                        <p className="text-sm text-white/70">Add school trips and nursery details</p>
+                    </div>
+                    {renderSection("schoolTrips", "School Trips")}
+                    {renderSection("nursery", "Nursery")}
+                    <Button
+                        type="submit"
+                        className="w-full bg-white/90 text-black hover:bg-white"
+                        disabled={getLoading || updateLoading || !form.formState.isValid}
+                    >
+                        {updateLoading ? "Saving..." : "Save"}
+                    </Button>
+                </form>
+            )}
         </FormProvider>
+    );
+};
+
+const LoadingSkeleton = ({ isRtl }: { isRtl: boolean }) => {
+    return (
+        <div className={cn("space-y-4", isRtl && "home-rtl")}>
+            <CommonLanguageSwitcherCheckbox />
+            <div className="space-y-2">
+                <Skeleton className="h-7 w-40" />
+                <Skeleton className="h-4 w-64" />
+            </div>
+            <Skeleton className="h-28 w-full" />
+            <Skeleton className="h-10 w-full" />
+        </div>
     );
 };
 

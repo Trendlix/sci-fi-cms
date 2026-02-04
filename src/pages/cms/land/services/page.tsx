@@ -24,7 +24,7 @@ import {
 } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -505,7 +505,6 @@ const LandBirthdayService = () => {
     const isRtl = language === "ar";
     const currentData = data?.[language] ?? null;
     const { open: openPreview } = usePreviewModalStore();
-    const hasInitialized = useRef(false);
     const form = useForm<LandBirthdayFormValues>({
         defaultValues: getEmptyBirthdayValues(),
         resolver: zodResolver(LandBirthdayZodSchema),
@@ -518,12 +517,11 @@ const LandBirthdayService = () => {
     });
 
     useEffect(() => {
-        hasInitialized.current = false;
         void get();
-    }, [get, language]);
+    }, [get, language, form]);
 
     useEffect(() => {
-        if (currentData === null || hasInitialized.current) {
+        if (currentData === null) {
             return;
         }
         const toFileEntry = (file?: LandFile): BirthdayFileEntry => ({
@@ -563,7 +561,6 @@ const LandBirthdayService = () => {
                 },
             },
         });
-        hasInitialized.current = true;
     }, [currentData, form]);
 
     const filesArray = useFieldArray({
@@ -610,138 +607,182 @@ const LandBirthdayService = () => {
         });
     };
 
-    if (getLoading) {
-        return (
-            <div className={cn("space-y-4", isRtl && "home-rtl")}>
-                <CommonLanguageSwitcherCheckbox />
-                <div className="space-y-2">
-                    <Skeleton className="h-7 w-40" />
-                    <Skeleton className="h-4 w-64" />
-                </div>
-                <Skeleton className="h-28 w-full" />
-                <Skeleton className="h-10 w-full" />
-            </div>
-        );
-    }
-
     return (
         <FormProvider {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
-                <CommonLanguageSwitcherCheckbox />
-                <div className="space-y-1 text-white">
-                    <h1 className="text-2xl font-semibold text-white">Birthday Party</h1>
-                    <p className="text-sm text-white/70">Add birthday party service details</p>
-                </div>
-                <FieldGroup className={cn("grid gap-4 md:grid-cols-2", "bg-white/5 rounded-2xl p-4")}>
-                    <Field>
-                        <FieldLabel htmlFor="birthday-price" className="text-white/80">
-                            Price <span className="text-white">*</span>
-                        </FieldLabel>
-                        <FieldContent>
-                            <Input
-                                id="birthday-price"
-                                type="number"
-                                min={0}
-                                className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                                {...form.register("price", { valueAsNumber: true })}
-                            />
-                            <FieldError errors={[form.formState.errors.price]} />
-                        </FieldContent>
-                    </Field>
-                    <Field className="md:col-span-2">
-                        <FieldLabel htmlFor="birthday-description" className="text-white/80">
-                            Description <span className="text-white">*</span>
-                        </FieldLabel>
-                        <FieldContent>
-                            <BasicRichEditor name="description" value={descriptionValue ?? ""} />
-                            <FieldError errors={[form.formState.errors.description]} />
-                        </FieldContent>
-                    </Field>
-                    <Field className="md:col-span-2">
-                        <FieldLabel className="text-white/80">
-                            Files <span className="text-white">*</span>
-                        </FieldLabel>
-                        <div className="space-y-3">
-                            {filesArray.fields.map((field, index) => (
-                                <BirthdayFileCard
-                                    key={field.id}
-                                    fieldId={field.id}
-                                    index={index}
-                                    item={watchedFiles?.[index]}
-                                    control={form.control}
-                                    register={form.register}
-                                    setValue={form.setValue}
-                                    errors={form.formState.errors}
-                                    canRemove={filesArray.fields.length > 1}
-                                    onRemove={() => filesArray.remove(index)}
-                                    onMove={filesArray.move}
-                                    onOpenPreview={openPreview}
+            {getLoading ? (
+                <LoadingSkeleton isRtl={isRtl} />
+            ) : (
+                <form onSubmit={form.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
+                    <CommonLanguageSwitcherCheckbox />
+                    <div className="space-y-1 text-white">
+                        <h1 className="text-2xl font-semibold text-white">Birthday Party</h1>
+                        <p className="text-sm text-white/70">Add birthday party service details</p>
+                    </div>
+                    <FieldGroup className={cn("grid gap-4 md:grid-cols-2", "bg-white/5 rounded-2xl p-4")}>
+                        <Field>
+                            <FieldLabel htmlFor="birthday-price" className="text-white/80">
+                                Price <span className="text-white">*</span>
+                            </FieldLabel>
+                            <FieldContent>
+                                <Input
+                                    id="birthday-price"
+                                    type="number"
+                                    min={0}
+                                    className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                    {...form.register("price", { valueAsNumber: true })}
                                 />
-                            ))}
-                            <Button
-                                type="button"
-                                className="bg-white/10 text-white hover:bg-white/20"
-                                onClick={() => filesArray.append({ ...defaultBirthdayFile })}
-                            >
-                                Add file
-                            </Button>
-                        </div>
-                    </Field>
-                </FieldGroup>
+                                <FieldError errors={[form.formState.errors.price]} />
+                            </FieldContent>
+                        </Field>
+                        <Field className="md:col-span-2">
+                            <FieldLabel htmlFor="birthday-description" className="text-white/80">
+                                Description <span className="text-white">*</span>
+                            </FieldLabel>
+                            <FieldContent>
+                                <BasicRichEditor name="description" value={descriptionValue ?? ""} />
+                                <FieldError errors={[form.formState.errors.description]} />
+                            </FieldContent>
+                        </Field>
+                        <Field className="md:col-span-2">
+                            <FieldLabel className="text-white/80">
+                                Files <span className="text-white">*</span>
+                            </FieldLabel>
+                            <div className="space-y-3">
+                                {filesArray.fields.map((field, index) => (
+                                    <BirthdayFileCard
+                                        key={field.id}
+                                        fieldId={field.id}
+                                        index={index}
+                                        item={watchedFiles?.[index]}
+                                        control={form.control}
+                                        register={form.register}
+                                        setValue={form.setValue}
+                                        errors={form.formState.errors}
+                                        canRemove={filesArray.fields.length > 1}
+                                        onRemove={() => filesArray.remove(index)}
+                                        onMove={filesArray.move}
+                                        onOpenPreview={openPreview}
+                                    />
+                                ))}
+                                <Button
+                                    type="button"
+                                    className="bg-white/10 text-white hover:bg-white/20"
+                                    onClick={() => filesArray.append({ ...defaultBirthdayFile })}
+                                >
+                                    Add file
+                                </Button>
+                            </div>
+                        </Field>
+                    </FieldGroup>
 
-                <div className={cn("space-y-4 bg-white/5 rounded-2xl p-4")}>
-                    {(["bronze", "gold"] as const).map((tier) => (
-                        <div key={tier} className="space-y-3 rounded-2xl border border-white/15 bg-white/5 p-4">
-                            <h2 className="text-lg font-semibold text-white capitalize">{tier} package</h2>
-                            <FieldGroup className="grid gap-4 md:grid-cols-3">
+                    <div className={cn("space-y-4 bg-white/5 rounded-2xl p-4")}>
+                        {(["bronze", "gold"] as const).map((tier) => (
+                            <div key={tier} className="space-y-3 rounded-2xl border border-white/15 bg-white/5 p-4">
+                                <h2 className="text-lg font-semibold text-white capitalize">{tier} package</h2>
+                                <FieldGroup className="grid gap-4 md:grid-cols-3">
+                                    <Field>
+                                        <FieldLabel htmlFor={`${tier}-old-price`} className="text-white/80">
+                                            Old price <span className="text-white">*</span>
+                                        </FieldLabel>
+                                        <FieldContent>
+                                            <Input
+                                                id={`${tier}-old-price`}
+                                                type="number"
+                                                min={0}
+                                                className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                                {...form.register(`packages.${tier}.oldPrice`, { valueAsNumber: true })}
+                                            />
+                                            <FieldError errors={[form.formState.errors.packages?.[tier]?.oldPrice]} />
+                                        </FieldContent>
+                                    </Field>
+                                    <Field>
+                                        <FieldLabel htmlFor={`${tier}-weekdays`} className="text-white/80">
+                                            Weekdays Price <span className="text-white">*</span>
+                                        </FieldLabel>
+                                        <FieldContent>
+                                            <Input
+                                                id={`${tier}-weekdays`}
+                                                type="number"
+                                                min={0}
+                                                className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                                {...form.register(`packages.${tier}.weekdays`, { valueAsNumber: true })}
+                                            />
+                                            <FieldError errors={[form.formState.errors.packages?.[tier]?.weekdays]} />
+                                        </FieldContent>
+                                    </Field>
+                                    <Field>
+                                        <FieldLabel htmlFor={`${tier}-weekends`} className="text-white/80">
+                                            Weekends Price <span className="text-white">*</span>
+                                        </FieldLabel>
+                                        <FieldContent>
+                                            <Input
+                                                id={`${tier}-weekends`}
+                                                type="number"
+                                                min={0}
+                                                className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                                {...form.register(`packages.${tier}.weekends`, { valueAsNumber: true })}
+                                            />
+                                            <FieldError errors={[form.formState.errors.packages?.[tier]?.weekends]} />
+                                        </FieldContent>
+                                    </Field>
+                                    <Field className="md:col-span-3">
+                                        <LineList
+                                            name={`packages.${tier}.descriptionList`}
+                                            label="Description list"
+                                            control={form.control}
+                                            register={form.register}
+                                            errors={form.formState.errors}
+                                        />
+                                    </Field>
+                                    <Field className="md:col-span-3">
+                                        <LineList
+                                            name={`packages.${tier}.highlightsList`}
+                                            label="Highlights list"
+                                            control={form.control}
+                                            register={form.register}
+                                            errors={form.formState.errors}
+                                        />
+                                    </Field>
+                                </FieldGroup>
+                            </div>
+                        ))}
+
+                        <div className="space-y-3 rounded-2xl border border-white/15 bg-white/5 p-4">
+                            <h2 className="text-lg font-semibold text-white">Diamond package</h2>
+                            <FieldGroup className="grid gap-4 md:grid-cols-2">
                                 <Field>
-                                    <FieldLabel htmlFor={`${tier}-old-price`} className="text-white/80">
+                                    <FieldLabel htmlFor="diamond-old-price" className="text-white/80">
                                         Old price <span className="text-white">*</span>
                                     </FieldLabel>
                                     <FieldContent>
                                         <Input
-                                            id={`${tier}-old-price`}
+                                            id="diamond-old-price"
                                             type="number"
                                             min={0}
                                             className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                                            {...form.register(`packages.${tier}.oldPrice`, { valueAsNumber: true })}
+                                            {...form.register("packages.diamond.oldPrice", { valueAsNumber: true })}
                                         />
-                                        <FieldError errors={[form.formState.errors.packages?.[tier]?.oldPrice]} />
+                                        <FieldError errors={[form.formState.errors.packages?.diamond?.oldPrice]} />
                                     </FieldContent>
                                 </Field>
                                 <Field>
-                                    <FieldLabel htmlFor={`${tier}-weekdays`} className="text-white/80">
-                                        Weekdays Price <span className="text-white">*</span>
+                                    <FieldLabel htmlFor="diamond-price" className="text-white/80">
+                                        Price <span className="text-white">*</span>
                                     </FieldLabel>
                                     <FieldContent>
                                         <Input
-                                            id={`${tier}-weekdays`}
+                                            id="diamond-price"
                                             type="number"
                                             min={0}
                                             className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                                            {...form.register(`packages.${tier}.weekdays`, { valueAsNumber: true })}
+                                            {...form.register("packages.diamond.price", { valueAsNumber: true })}
                                         />
-                                        <FieldError errors={[form.formState.errors.packages?.[tier]?.weekdays]} />
-                                    </FieldContent>
-                                </Field>
-                                <Field>
-                                    <FieldLabel htmlFor={`${tier}-weekends`} className="text-white/80">
-                                        Weekends Price <span className="text-white">*</span>
-                                    </FieldLabel>
-                                    <FieldContent>
-                                        <Input
-                                            id={`${tier}-weekends`}
-                                            type="number"
-                                            min={0}
-                                            className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                                            {...form.register(`packages.${tier}.weekends`, { valueAsNumber: true })}
-                                        />
-                                        <FieldError errors={[form.formState.errors.packages?.[tier]?.weekends]} />
+                                        <FieldError errors={[form.formState.errors.packages?.diamond?.price]} />
                                     </FieldContent>
                                 </Field>
                                 <Field className="md:col-span-3">
                                     <LineList
-                                        name={`packages.${tier}.descriptionList`}
+                                        name="packages.diamond.descriptionList"
                                         label="Description list"
                                         control={form.control}
                                         register={form.register}
@@ -750,7 +791,7 @@ const LandBirthdayService = () => {
                                 </Field>
                                 <Field className="md:col-span-3">
                                     <LineList
-                                        name={`packages.${tier}.highlightsList`}
+                                        name="packages.diamond.highlightsList"
                                         label="Highlights list"
                                         control={form.control}
                                         register={form.register}
@@ -759,117 +800,77 @@ const LandBirthdayService = () => {
                                 </Field>
                             </FieldGroup>
                         </div>
-                    ))}
 
-                    <div className="space-y-3 rounded-2xl border border-white/15 bg-white/5 p-4">
-                        <h2 className="text-lg font-semibold text-white">Diamond package</h2>
-                        <FieldGroup className="grid gap-4 md:grid-cols-2">
-                            <Field>
-                                <FieldLabel htmlFor="diamond-old-price" className="text-white/80">
-                                    Old price <span className="text-white">*</span>
-                                </FieldLabel>
-                                <FieldContent>
-                                    <Input
-                                        id="diamond-old-price"
-                                        type="number"
-                                        min={0}
-                                        className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                                        {...form.register("packages.diamond.oldPrice", { valueAsNumber: true })}
-                                    />
-                                    <FieldError errors={[form.formState.errors.packages?.diamond?.oldPrice]} />
-                                </FieldContent>
-                            </Field>
-                            <Field>
-                                <FieldLabel htmlFor="diamond-price" className="text-white/80">
-                                    Price <span className="text-white">*</span>
-                                </FieldLabel>
-                                <FieldContent>
-                                    <Input
-                                        id="diamond-price"
-                                        type="number"
-                                        min={0}
-                                        className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                                        {...form.register("packages.diamond.price", { valueAsNumber: true })}
-                                    />
-                                    <FieldError errors={[form.formState.errors.packages?.diamond?.price]} />
-                                </FieldContent>
-                            </Field>
-                            <Field className="md:col-span-3">
-                                <LineList
-                                    name="packages.diamond.descriptionList"
-                                    label="Description list"
-                                    control={form.control}
-                                    register={form.register}
-                                    errors={form.formState.errors}
-                                />
-                            </Field>
-                            <Field className="md:col-span-3">
-                                <LineList
-                                    name="packages.diamond.highlightsList"
-                                    label="Highlights list"
-                                    control={form.control}
-                                    register={form.register}
-                                    errors={form.formState.errors}
-                                />
-                            </Field>
-                        </FieldGroup>
+                        <div className="space-y-3 rounded-2xl border border-white/15 bg-white/5 p-4">
+                            <h2 className="text-lg font-semibold text-white">Prince package</h2>
+                            <FieldGroup className="grid gap-4 md:grid-cols-2">
+                                <Field>
+                                    <FieldLabel htmlFor="prince-title" className="text-white/80">
+                                        Title <span className="text-white">*</span>
+                                    </FieldLabel>
+                                    <FieldContent>
+                                        <Input
+                                            id="prince-title"
+                                            placeholder="Title"
+                                            className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                            {...form.register("packages.prince.title")}
+                                        />
+                                        <FieldError errors={[form.formState.errors.packages?.prince?.title]} />
+                                    </FieldContent>
+                                </Field>
+                                <Field className="md:col-span-2">
+                                    <FieldLabel htmlFor="prince-description" className="text-white/80">
+                                        Description <span className="text-white">*</span>
+                                    </FieldLabel>
+                                    <FieldContent>
+                                        <BasicRichEditor
+                                            name="packages.prince.description"
+                                            value={packageDescriptionValue ?? ""}
+                                        />
+                                        <FieldError errors={[form.formState.errors.packages?.prince?.description]} />
+                                    </FieldContent>
+                                </Field>
+                            </FieldGroup>
+                        </div>
                     </div>
-
-                    <div className="space-y-3 rounded-2xl border border-white/15 bg-white/5 p-4">
-                        <h2 className="text-lg font-semibold text-white">Prince package</h2>
-                        <FieldGroup className="grid gap-4 md:grid-cols-2">
-                            <Field>
-                                <FieldLabel htmlFor="prince-title" className="text-white/80">
-                                    Title <span className="text-white">*</span>
-                                </FieldLabel>
-                                <FieldContent>
-                                    <Input
-                                        id="prince-title"
-                                        placeholder="Title"
-                                        className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                                        {...form.register("packages.prince.title")}
-                                    />
-                                    <FieldError errors={[form.formState.errors.packages?.prince?.title]} />
-                                </FieldContent>
-                            </Field>
-                            <Field className="md:col-span-2">
-                                <FieldLabel htmlFor="prince-description" className="text-white/80">
-                                    Description <span className="text-white">*</span>
-                                </FieldLabel>
-                                <FieldContent>
-                                    <BasicRichEditor
-                                        name="packages.prince.description"
-                                        value={packageDescriptionValue ?? ""}
-                                    />
-                                    <FieldError errors={[form.formState.errors.packages?.prince?.description]} />
-                                </FieldContent>
-                            </Field>
-                        </FieldGroup>
-                    </div>
-                </div>
-                {!form.formState.isValid ? (
-                    <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                        <p className="font-semibold">Fix the highlighted fields:</p>
-                        <ul className="mt-2 space-y-1">
-                            {collectErrorMessages(form.formState.errors as Record<string, unknown>)
-                                .slice(0, 8)
-                                .map((item) => (
-                                    <li key={`${item.path}-${item.message}`}>
-                                        <span className="font-medium">{item.path}:</span> {item.message}
-                                    </li>
-                                ))}
-                        </ul>
-                    </div>
-                ) : null}
-                <Button
-                    type="submit"
-                    className="w-full bg-white/90 text-black hover:bg-white"
-                    disabled={getLoading || updateLoading || !form.formState.isValid}
-                >
-                    {updateLoading ? "Saving..." : "Save"}
-                </Button>
-            </form>
+                    {!form.formState.isValid ? (
+                        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                            <p className="font-semibold">Fix the highlighted fields:</p>
+                            <ul className="mt-2 space-y-1">
+                                {collectErrorMessages(form.formState.errors as Record<string, unknown>)
+                                    .slice(0, 8)
+                                    .map((item) => (
+                                        <li key={`${item.path}-${item.message}`}>
+                                            <span className="font-medium">{item.path}:</span> {item.message}
+                                        </li>
+                                    ))}
+                            </ul>
+                        </div>
+                    ) : null}
+                    <Button
+                        type="submit"
+                        className="w-full bg-white/90 text-black hover:bg-white"
+                        disabled={getLoading || updateLoading || !form.formState.isValid}
+                    >
+                        {updateLoading ? "Saving..." : "Save"}
+                    </Button>
+                </form>
+            )}
         </FormProvider>
+    );
+};
+
+const LoadingSkeleton = ({ isRtl }: { isRtl: boolean }) => {
+    return (
+        <div className={cn("space-y-4", isRtl && "home-rtl")}>
+            <CommonLanguageSwitcherCheckbox />
+            <div className="space-y-2">
+                <Skeleton className="h-7 w-40" />
+                <Skeleton className="h-4 w-64" />
+            </div>
+            <Skeleton className="h-28 w-full" />
+            <Skeleton className="h-10 w-full" />
+        </div>
     );
 };
 

@@ -258,27 +258,12 @@ const EventsUpcoming = () => {
         });
     };
 
-    if (getLoading) {
-        return (
-            <div className={cn("space-y-4", isRtl && "home-rtl")}>
-                <CommonLanguageSwitcherCheckbox />
-                <div className="space-y-2">
-                    <Skeleton className="h-7 w-40" />
-                    <Skeleton className="h-4 w-64" />
-                </div>
-                <Skeleton className="h-24 w-24" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-24 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-            </div>
-        );
-    }
-
     return (
         <FormProvider {...upcomingForm}>
-            <form onSubmit={upcomingForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
+            {getLoading ? (
+                <LoadingSkeleton isRtl={isRtl} />
+            ) : (
+                <form onSubmit={upcomingForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
                 <CommonLanguageSwitcherCheckbox />
                 <div className="space-y-1 text-white">
                     <h1 className="text-2xl font-semibold text-white">Events Upcoming</h1>
@@ -439,8 +424,27 @@ const EventsUpcoming = () => {
                 >
                     {updateLoading ? "Saving..." : "Save"}
                 </Button>
-            </form>
+                </form>
+            )}
         </FormProvider>
+    );
+};
+
+const LoadingSkeleton = ({ isRtl }: { isRtl: boolean }) => {
+    return (
+        <div className={cn("space-y-4", isRtl && "home-rtl")}>
+            <CommonLanguageSwitcherCheckbox />
+            <div className="space-y-2">
+                <Skeleton className="h-7 w-40" />
+                <Skeleton className="h-4 w-64" />
+            </div>
+            <Skeleton className="h-24 w-24" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+        </div>
     );
 };
 

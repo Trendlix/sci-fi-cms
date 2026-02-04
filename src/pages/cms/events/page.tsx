@@ -161,114 +161,118 @@ const EventsHero = () => {
         await update(formData);
     };
 
-    if (getLoading) {
-        return (
-            <div className={cn("space-y-4", isRtl && "home-rtl")}>
-                <CommonLanguageSwitcherCheckbox />
-                <div className="space-y-2">
-                    <Skeleton className="h-7 w-40" />
-                    <Skeleton className="h-4 w-64" />
-                </div>
-                <div className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
-                    <Skeleton className="h-24 w-24" />
-                    <Skeleton className="h-10 w-full" />
-                    <Skeleton className="h-10 w-full" />
-                    <Skeleton className="h-10 w-full" />
-                    <Skeleton className="h-24 w-full" />
-                </div>
-                <Skeleton className="h-10 w-full" />
-            </div>
-        );
-    }
-
     return (
         <FormProvider {...heroForm}>
-            <form onSubmit={heroForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
-                <CommonLanguageSwitcherCheckbox />
-                <div className="space-y-1 text-white">
-                    <h1 className="text-2xl font-semibold text-white">Events Hero</h1>
-                    <p className="text-sm text-white/70">Add hero cards (file, title, description)</p>
-                </div>
-                <div className="space-y-6">
-                    {cardFields.fields.map((field, index) => (
-                        <div key={field.id} className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
-                            <div className="flex items-center justify-between">
-                                <h2 className="text-lg font-semibold text-white">Card {index + 1}</h2>
-                                <Button
-                                    type="button"
-                                    className="bg-white/10 text-white hover:bg-white/20"
-                                    disabled={cardFields.fields.length <= 1}
-                                    onClick={() => cardFields.remove(index)}
-                                >
-                                    Remove card
-                                </Button>
+            {getLoading ? (
+                <LoadingSkeleton isRtl={isRtl} />
+            ) : (
+                <form onSubmit={heroForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
+                    <CommonLanguageSwitcherCheckbox />
+                    <div className="space-y-1 text-white">
+                        <h1 className="text-2xl font-semibold text-white">Events Hero</h1>
+                        <p className="text-sm text-white/70">Add hero cards (file, title, description)</p>
+                    </div>
+                    <div className="space-y-6">
+                        {cardFields.fields.map((field, index) => (
+                            <div key={field.id} className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-lg font-semibold text-white">Card {index + 1}</h2>
+                                    <Button
+                                        type="button"
+                                        className="bg-white/10 text-white hover:bg-white/20"
+                                        disabled={cardFields.fields.length <= 1}
+                                        onClick={() => cardFields.remove(index)}
+                                    >
+                                        Remove card
+                                    </Button>
+                                </div>
+                                <Field>
+                                    <FieldLabel className="text-white/80">
+                                        File <span className="text-white">*</span>
+                                    </FieldLabel>
+                                    <FieldContent>
+                                        <CardFileUploader
+                                            control={heroForm.control}
+                                            name={`cards.${index}.fileFile`}
+                                            inputId={`events-hero-file-${index}`}
+                                            existingUrl={currentData?.cards?.[index]?.file?.url}
+                                        />
+                                        <FieldError errors={[heroForm.formState.errors.cards?.[index]?.fileFile]} />
+                                    </FieldContent>
+                                </Field>
+                                <FieldGroup className="grid gap-4 md:grid-cols-4">
+                                    {Array.from({ length: 8 }).map((_, titleIndex) => (
+                                        <Field key={`events-hero-card-${index}-title-${titleIndex}`}>
+                                            <FieldLabel
+                                                htmlFor={`events-hero-card-${index}-title-${titleIndex}`}
+                                                className="text-white/80"
+                                            >
+                                                Title {titleIndex + 1} <span className="text-white">*</span>
+                                            </FieldLabel>
+                                            <FieldContent>
+                                                <Input
+                                                    id={`events-hero-card-${index}-title-${titleIndex}`}
+                                                    placeholder={`Word ${titleIndex + 1}`}
+                                                    className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                                    {...heroForm.register(`cards.${index}.title.${titleIndex}`)}
+                                                />
+                                                <FieldError errors={[heroForm.formState.errors.cards?.[index]?.title?.[titleIndex]]} />
+                                            </FieldContent>
+                                        </Field>
+                                    ))}
+                                </FieldGroup>
+                                <Field>
+                                    <FieldLabel htmlFor={`events-hero-description-${index}`} className="text-white/80">
+                                        Description <span className="text-white">*</span>
+                                    </FieldLabel>
+                                    <FieldContent>
+                                        <BasicRichEditor
+                                            name={`cards.${index}.description`}
+                                            value={cardsValue?.[index]?.description ?? ""}
+                                        />
+                                        <FieldError errors={[heroForm.formState.errors.cards?.[index]?.description]} />
+                                    </FieldContent>
+                                </Field>
                             </div>
-                            <Field>
-                                <FieldLabel className="text-white/80">
-                                    File <span className="text-white">*</span>
-                                </FieldLabel>
-                                <FieldContent>
-                                    <CardFileUploader
-                                        control={heroForm.control}
-                                        name={`cards.${index}.fileFile`}
-                                        inputId={`events-hero-file-${index}`}
-                                        existingUrl={currentData?.cards?.[index]?.file?.url}
-                                    />
-                                    <FieldError errors={[heroForm.formState.errors.cards?.[index]?.fileFile]} />
-                                </FieldContent>
-                            </Field>
-                            <FieldGroup className="grid gap-4 md:grid-cols-4">
-                                {Array.from({ length: 8 }).map((_, titleIndex) => (
-                                    <Field key={`events-hero-card-${index}-title-${titleIndex}`}>
-                                        <FieldLabel
-                                            htmlFor={`events-hero-card-${index}-title-${titleIndex}`}
-                                            className="text-white/80"
-                                        >
-                                            Title {titleIndex + 1} <span className="text-white">*</span>
-                                        </FieldLabel>
-                                        <FieldContent>
-                                            <Input
-                                                id={`events-hero-card-${index}-title-${titleIndex}`}
-                                                placeholder={`Word ${titleIndex + 1}`}
-                                                className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                                                {...heroForm.register(`cards.${index}.title.${titleIndex}`)}
-                                            />
-                                            <FieldError errors={[heroForm.formState.errors.cards?.[index]?.title?.[titleIndex]]} />
-                                        </FieldContent>
-                                    </Field>
-                                ))}
-                            </FieldGroup>
-                            <Field>
-                                <FieldLabel htmlFor={`events-hero-description-${index}`} className="text-white/80">
-                                    Description <span className="text-white">*</span>
-                                </FieldLabel>
-                                <FieldContent>
-                                    <BasicRichEditor
-                                        name={`cards.${index}.description`}
-                                        value={cardsValue?.[index]?.description ?? ""}
-                                    />
-                                    <FieldError errors={[heroForm.formState.errors.cards?.[index]?.description]} />
-                                </FieldContent>
-                            </Field>
-                        </div>
-                    ))}
+                        ))}
+                        <Button
+                            type="button"
+                            className="bg-white/10 text-white hover:bg-white/20"
+                            onClick={() => cardFields.append({ ...defaultCard })}
+                        >
+                            Add card
+                        </Button>
+                    </div>
                     <Button
-                        type="button"
-                        className="bg-white/10 text-white hover:bg-white/20"
-                        onClick={() => cardFields.append({ ...defaultCard })}
+                        type="submit"
+                        className="w-full bg-white/90 text-black hover:bg-white"
+                        disabled={getLoading || updateLoading || !heroForm.formState.isValid}
                     >
-                        Add card
+                        {updateLoading ? "Saving..." : "Save"}
                     </Button>
-                </div>
-                <Button
-                    type="submit"
-                    className="w-full bg-white/90 text-black hover:bg-white"
-                    disabled={getLoading || updateLoading || !heroForm.formState.isValid}
-                >
-                    {updateLoading ? "Saving..." : "Save"}
-                </Button>
-            </form>
+                </form>
+            )}
         </FormProvider>
+    );
+};
+
+const LoadingSkeleton = ({ isRtl }: { isRtl: boolean }) => {
+    return (
+        <div className={cn("space-y-4", isRtl && "home-rtl")}>
+            <CommonLanguageSwitcherCheckbox />
+            <div className="space-y-2">
+                <Skeleton className="h-7 w-40" />
+                <Skeleton className="h-4 w-64" />
+            </div>
+            <div className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
+                <Skeleton className="h-24 w-24" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-24 w-full" />
+            </div>
+            <Skeleton className="h-10 w-full" />
+        </div>
     );
 };
 

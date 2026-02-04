@@ -25,7 +25,7 @@ import {
 } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -465,7 +465,6 @@ const LandMembershipService = () => {
     const isRtl = language === "ar";
     const currentData = data?.[language] ?? null;
     const { open: openPreview } = usePreviewModalStore();
-    const hasInitialized = useRef(false);
     const form = useForm<LandMembershipFormValues>({
         defaultValues: getEmptyMembershipValues(),
         resolver: zodResolver(LandMembershipZodSchema),
@@ -475,12 +474,11 @@ const LandMembershipService = () => {
     const packagesDescriptionValue = useWatch({ control: form.control, name: "packages.description" });
 
     useEffect(() => {
-        hasInitialized.current = false;
         void get();
-    }, [get, language]);
+    }, [get, language, form]);
 
     useEffect(() => {
-        if (currentData === null || hasInitialized.current) {
+        if (currentData === null) {
             return;
         }
         const toFileEntry = (file?: LandFile): MembershipFileEntry => ({
@@ -521,7 +519,6 @@ const LandMembershipService = () => {
                 },
             },
         });
-        hasInitialized.current = true;
     }, [currentData, form]);
 
     const filesArray = useFieldArray({
@@ -580,20 +577,6 @@ const LandMembershipService = () => {
             },
         });
     };
-
-    if (getLoading) {
-        return (
-            <div className={cn("space-y-4", isRtl && "home-rtl")}>
-                <CommonLanguageSwitcherCheckbox />
-                <div className="space-y-2">
-                    <Skeleton className="h-7 w-40" />
-                    <Skeleton className="h-4 w-64" />
-                </div>
-                <Skeleton className="h-28 w-full" />
-                <Skeleton className="h-10 w-full" />
-            </div>
-        );
-    }
 
     const renderYearCard = (year: "3" | "6") => (
         <div className="space-y-3 rounded-2xl border border-white/15 bg-white/5 p-4">
@@ -736,105 +719,123 @@ const LandMembershipService = () => {
 
     return (
         <FormProvider {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
-                <CommonLanguageSwitcherCheckbox />
-                <div className="space-y-1 text-white">
-                    <h1 className="text-2xl font-semibold text-white">Membership Packages</h1>
-                    <p className="text-sm text-white/70">Add membership packages details</p>
-                </div>
-                <FieldGroup className="grid gap-4 md:grid-cols-2">
-                    <Field>
-                        <FieldLabel htmlFor="membership-price" className="text-white/80">
-                            Price <span className="text-white">*</span>
-                        </FieldLabel>
-                        <FieldContent>
-                            <Input
-                                id="membership-price"
-                                type="number"
-                                min={0}
-                                className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                                {...form.register("price", { valueAsNumber: true })}
-                            />
-                            <FieldError errors={[form.formState.errors.price]} />
-                        </FieldContent>
-                    </Field>
-                    <Field className="md:col-span-2">
-                        <FieldLabel className="text-white/80">
-                            Files <span className="text-white">*</span>
-                        </FieldLabel>
-                        <div className="space-y-3">
-                            {filesArray.fields.map((field, index) => (
-                                <MembershipFileCard
-                                    key={field.id}
-                                    fieldId={field.id}
-                                    index={index}
-                                    item={watchedFiles?.[index]}
-                                    control={form.control}
-                                    register={form.register}
-                                    setValue={form.setValue}
-                                    errors={form.formState.errors}
-                                    canRemove={filesArray.fields.length > 1}
-                                    onRemove={() => filesArray.remove(index)}
-                                    onMove={filesArray.move}
-                                    onOpenPreview={openPreview}
-                                />
-                            ))}
-                            <Button
-                                type="button"
-                                className="bg-white/10 text-white hover:bg-white/20"
-                                onClick={() => filesArray.append({ ...defaultMembershipFile })}
-                            >
-                                Add file
-                            </Button>
-                        </div>
-                    </Field>
-                    <Field className="md:col-span-2">
-                        <FieldLabel htmlFor="membership-description" className="text-white/80">
-                            Description <span className="text-white">*</span>
-                        </FieldLabel>
-                        <FieldContent>
-                            <BasicRichEditor name="description" value={descriptionValue ?? ""} />
-                            <FieldError errors={[form.formState.errors.description]} />
-                        </FieldContent>
-                    </Field>
-                    <Field className="md:col-span-2">
-                        <FieldLabel htmlFor="membership-package-description" className="text-white/80">
-                            Packages description <span className="text-white">*</span>
-                        </FieldLabel>
-                        <FieldContent>
-                            <BasicRichEditor
-                                name="packages.description"
-                                value={packagesDescriptionValue ?? ""}
-                            />
-                            <FieldError errors={[form.formState.errors.packages?.description]} />
-                        </FieldContent>
-                    </Field>
-                </FieldGroup>
-                {renderYearCard("3")}
-                {renderYearCard("6")}
-                {!form.formState.isValid ? (
-                    <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                        <p className="font-semibold">Fix the highlighted fields:</p>
-                        <ul className="mt-2 space-y-1">
-                            {collectErrorMessages(form.formState.errors as Record<string, unknown>)
-                                .slice(0, 8)
-                                .map((item) => (
-                                    <li key={`${item.path}-${item.message}`}>
-                                        <span className="font-medium">{item.path}:</span> {item.message}
-                                    </li>
-                                ))}
-                        </ul>
+            {getLoading ? (
+                <LoadingSkeleton isRtl={isRtl} />
+            ) : (
+                <form onSubmit={form.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
+                    <CommonLanguageSwitcherCheckbox />
+                    <div className="space-y-1 text-white">
+                        <h1 className="text-2xl font-semibold text-white">Membership Packages</h1>
+                        <p className="text-sm text-white/70">Add membership packages details</p>
                     </div>
-                ) : null}
-                <Button
-                    type="submit"
-                    className="w-full bg-white/90 text-black hover:bg-white"
-                    disabled={getLoading || updateLoading || !form.formState.isValid}
-                >
-                    {updateLoading ? "Saving..." : "Save"}
-                </Button>
-            </form>
+                    <FieldGroup className="grid gap-4 md:grid-cols-2">
+                        <Field>
+                            <FieldLabel htmlFor="membership-price" className="text-white/80">
+                                Price <span className="text-white">*</span>
+                            </FieldLabel>
+                            <FieldContent>
+                                <Input
+                                    id="membership-price"
+                                    type="number"
+                                    min={0}
+                                    className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                    {...form.register("price", { valueAsNumber: true })}
+                                />
+                                <FieldError errors={[form.formState.errors.price]} />
+                            </FieldContent>
+                        </Field>
+                        <Field className="md:col-span-2">
+                            <FieldLabel className="text-white/80">
+                                Files <span className="text-white">*</span>
+                            </FieldLabel>
+                            <div className="space-y-3">
+                                {filesArray.fields.map((field, index) => (
+                                    <MembershipFileCard
+                                        key={field.id}
+                                        fieldId={field.id}
+                                        index={index}
+                                        item={watchedFiles?.[index]}
+                                        control={form.control}
+                                        register={form.register}
+                                        setValue={form.setValue}
+                                        errors={form.formState.errors}
+                                        canRemove={filesArray.fields.length > 1}
+                                        onRemove={() => filesArray.remove(index)}
+                                        onMove={filesArray.move}
+                                        onOpenPreview={openPreview}
+                                    />
+                                ))}
+                                <Button
+                                    type="button"
+                                    className="bg-white/10 text-white hover:bg-white/20"
+                                    onClick={() => filesArray.append({ ...defaultMembershipFile })}
+                                >
+                                    Add file
+                                </Button>
+                            </div>
+                        </Field>
+                        <Field className="md:col-span-2">
+                            <FieldLabel htmlFor="membership-description" className="text-white/80">
+                                Description <span className="text-white">*</span>
+                            </FieldLabel>
+                            <FieldContent>
+                                <BasicRichEditor name="description" value={descriptionValue ?? ""} />
+                                <FieldError errors={[form.formState.errors.description]} />
+                            </FieldContent>
+                        </Field>
+                        <Field className="md:col-span-2">
+                            <FieldLabel htmlFor="membership-package-description" className="text-white/80">
+                                Packages description <span className="text-white">*</span>
+                            </FieldLabel>
+                            <FieldContent>
+                                <BasicRichEditor
+                                    name="packages.description"
+                                    value={packagesDescriptionValue ?? ""}
+                                />
+                                <FieldError errors={[form.formState.errors.packages?.description]} />
+                            </FieldContent>
+                        </Field>
+                    </FieldGroup>
+                    {renderYearCard("3")}
+                    {renderYearCard("6")}
+                    {!form.formState.isValid ? (
+                        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                            <p className="font-semibold">Fix the highlighted fields:</p>
+                            <ul className="mt-2 space-y-1">
+                                {collectErrorMessages(form.formState.errors as Record<string, unknown>)
+                                    .slice(0, 8)
+                                    .map((item) => (
+                                        <li key={`${item.path}-${item.message}`}>
+                                            <span className="font-medium">{item.path}:</span> {item.message}
+                                        </li>
+                                    ))}
+                            </ul>
+                        </div>
+                    ) : null}
+                    <Button
+                        type="submit"
+                        className="w-full bg-white/90 text-black hover:bg-white"
+                        disabled={getLoading || updateLoading || !form.formState.isValid}
+                    >
+                        {updateLoading ? "Saving..." : "Save"}
+                    </Button>
+                </form>
+            )}
         </FormProvider>
+    );
+};
+
+const LoadingSkeleton = ({ isRtl }: { isRtl: boolean }) => {
+    return (
+        <div className={cn("space-y-4", isRtl && "home-rtl")}>
+            <CommonLanguageSwitcherCheckbox />
+            <div className="space-y-2">
+                <Skeleton className="h-7 w-40" />
+                <Skeleton className="h-4 w-64" />
+            </div>
+            <Skeleton className="h-28 w-full" />
+            <Skeleton className="h-10 w-full" />
+        </div>
     );
 };
 

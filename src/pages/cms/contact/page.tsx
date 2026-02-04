@@ -13,7 +13,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, FormProvider, useFieldArray, useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useContactStore } from "@/shared/hooks/store/contact/useContactStore";
 import type { ContactPayload } from "@/shared/hooks/store/contact/contact.types";
@@ -332,7 +332,6 @@ const ContactPage = () => {
     const { get, update, getLoading, updateLoading } = useContactStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
-    const hasInitialized = useRef(false);
     const contactForm = useForm<ContactFormValues>({
         defaultValues: DEFAULT_FORM_VALUES,
         resolver: zodResolver(ContactZodValidationSchema),
@@ -351,7 +350,6 @@ const ContactPage = () => {
 
     useEffect(() => {
         let isActive = true;
-        hasInitialized.current = false;
         contactForm.reset(DEFAULT_FORM_VALUES);
         contactForm.clearErrors();
 
@@ -360,7 +358,6 @@ const ContactPage = () => {
             if (!isActive) return;
             if (!result) {
                 contactForm.reset(DEFAULT_FORM_VALUES);
-                hasInitialized.current = true;
                 return;
             }
             contactForm.reset({
@@ -377,7 +374,6 @@ const ContactPage = () => {
                         : [defaultCard],
                 },
             });
-            hasInitialized.current = true;
         };
 
         void load();
@@ -402,29 +398,29 @@ const ContactPage = () => {
         await update(payload);
     };
 
-    if (getLoading) {
-        return <ContactSkeleton isRtl={isRtl} />;
-    }
-
     return (
         <FormProvider {...contactForm}>
-            <form
-                onSubmit={contactForm.handleSubmit(onSubmit)}
-                className={cn("space-y-6", isRtl && "home-rtl")}
-            >
-                <CommonLanguageSwitcherCheckbox />
-                <ContactPageHeader />
-                <HeroSection form={contactForm} />
-                <GetInTouchSection
-                    form={contactForm}
-                    cardsFields={cardsFields}
-                    watchedCards={watchedCards}
-                />
-                <SaveButton
-                    isDisabled={getLoading || updateLoading || !contactForm.formState.isValid}
-                    isLoading={updateLoading}
-                />
-            </form>
+            {getLoading ? (
+                <ContactSkeleton isRtl={isRtl} />
+            ) : (
+                <form
+                    onSubmit={contactForm.handleSubmit(onSubmit)}
+                    className={cn("space-y-6", isRtl && "home-rtl")}
+                >
+                    <CommonLanguageSwitcherCheckbox />
+                    <ContactPageHeader />
+                    <HeroSection form={contactForm} />
+                    <GetInTouchSection
+                        form={contactForm}
+                        cardsFields={cardsFields}
+                        watchedCards={watchedCards}
+                    />
+                    <SaveButton
+                        isDisabled={getLoading || updateLoading || !contactForm.formState.isValid}
+                        isLoading={updateLoading}
+                    />
+                </form>
+            )}
         </FormProvider>
     );
 };

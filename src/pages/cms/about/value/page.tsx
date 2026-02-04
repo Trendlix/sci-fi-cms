@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useFieldArray, useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -37,7 +37,6 @@ const AboutValue = () => {
     const isRtl = language === "ar";
     const currentData = data?.[language];
     const currentSection = currentData?.value;
-    const hasInitialized = useRef(false);
     const isReady = !getLoading && currentData !== undefined && currentSection !== undefined;
     const valueForm = useForm<AboutValueFormValues>({
         defaultValues: {
@@ -56,22 +55,17 @@ const AboutValue = () => {
     });
 
     useEffect(() => {
-        hasInitialized.current = false;
         valueForm.reset({ description: "", cards: [defaultCard] });
         valueForm.clearErrors();
         void get("value");
     }, [get, language, valueForm]);
 
     useEffect(() => {
-        if (hasInitialized.current) {
-            return;
-        }
         if (currentSection === undefined) {
             return;
         }
         if (!currentSection) {
             valueForm.reset({ description: "", cards: [defaultCard] });
-            hasInitialized.current = true;
             return;
         }
         valueForm.reset({
@@ -84,124 +78,127 @@ const AboutValue = () => {
                 }))
                 : [defaultCard],
         });
-        hasInitialized.current = true;
     }, [currentSection, valueForm]);
 
     const onSubmit = async (formData: AboutValueFormValues) => {
         await update("value", formData);
     };
 
-    if (getLoading || !isReady) {
-        return (
-            <div className={cn("space-y-4", isRtl && "home-rtl")}>
-                <CommonLanguageSwitcherCheckbox />
-                <div className="space-y-2">
-                    <Skeleton className="h-7 w-40" />
-                    <Skeleton className="h-4 w-64" />
-                </div>
-                <Skeleton className="h-28 w-full" />
-                <div className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
-                    <Skeleton className="h-10 w-full" />
-                    <Skeleton className="h-10 w-full" />
-                    <Skeleton className="h-10 w-full" />
-                </div>
-                <Skeleton className="h-10 w-full" />
-            </div>
-        );
-    }
-
     return (
         <FormProvider {...valueForm}>
-            <form onSubmit={valueForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
-                <CommonLanguageSwitcherCheckbox />
-                <div className="space-y-1 text-white">
-                    <h1 className="text-2xl font-semibold text-white">Value Section</h1>
-                    <p className="text-sm text-white/70">Add value cards</p>
-                </div>
-                <Field>
-                    <FieldLabel htmlFor="value-description" className="text-white/80">
-                        Description <span className="text-white">*</span>
-                    </FieldLabel>
-                    <FieldContent>
-                        <BasicRichEditor name="description" value={descriptionValue ?? ""} />
-                        <FieldError errors={[valueForm.formState.errors.description]} />
-                    </FieldContent>
-                </Field>
-                <div className="space-y-6">
-                    {cardFields.fields.map((field, index) => (
-                        <div key={field.id} className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
-                            <div className="flex items-center justify-between">
-                                <h2 className="text-lg font-semibold text-white">Card {index + 1}</h2>
-                                <Button
-                                    type="button"
-                                    className="bg-white/10 text-white hover:bg-white/20"
-                                    disabled={cardFields.fields.length <= 1}
-                                    onClick={() => cardFields.remove(index)}
-                                >
-                                    Remove
-                                </Button>
+            {getLoading || !isReady ? (
+                <LoadingSkeleton isRtl={isRtl} />
+            ) : (
+                <form onSubmit={valueForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
+                    <CommonLanguageSwitcherCheckbox />
+                    <div className="space-y-1 text-white">
+                        <h1 className="text-2xl font-semibold text-white">Value Section</h1>
+                        <p className="text-sm text-white/70">Add value cards</p>
+                    </div>
+                    <Field>
+                        <FieldLabel htmlFor="value-description" className="text-white/80">
+                            Description <span className="text-white">*</span>
+                        </FieldLabel>
+                        <FieldContent>
+                            <BasicRichEditor name="description" value={descriptionValue ?? ""} />
+                            <FieldError errors={[valueForm.formState.errors.description]} />
+                        </FieldContent>
+                    </Field>
+                    <div className="space-y-6">
+                        {cardFields.fields.map((field, index) => (
+                            <div key={field.id} className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-lg font-semibold text-white">Card {index + 1}</h2>
+                                    <Button
+                                        type="button"
+                                        className="bg-white/10 text-white hover:bg-white/20"
+                                        disabled={cardFields.fields.length <= 1}
+                                        onClick={() => cardFields.remove(index)}
+                                    >
+                                        Remove
+                                    </Button>
+                                </div>
+                                <FieldGroup className="grid gap-4 md:grid-cols-2">
+                                    <Field>
+                                        <FieldLabel htmlFor={`value-icon-${index}`} className="text-white/80">
+                                            Icon <span className="text-white">*</span>
+                                        </FieldLabel>
+                                        <FieldContent>
+                                            <Input
+                                                id={`value-icon-${index}`}
+                                                placeholder="Icon name"
+                                                className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                                {...valueForm.register(`cards.${index}.icon`)}
+                                            />
+                                            <FieldError errors={[valueForm.formState.errors.cards?.[index]?.icon]} />
+                                        </FieldContent>
+                                    </Field>
+                                    <Field>
+                                        <FieldLabel htmlFor={`value-title-${index}`} className="text-white/80">
+                                            Title <span className="text-white">*</span>
+                                        </FieldLabel>
+                                        <FieldContent>
+                                            <Input
+                                                id={`value-title-${index}`}
+                                                placeholder="Title"
+                                                className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                                {...valueForm.register(`cards.${index}.title`)}
+                                            />
+                                            <FieldError errors={[valueForm.formState.errors.cards?.[index]?.title]} />
+                                        </FieldContent>
+                                    </Field>
+                                    <Field className="md:col-span-2">
+                                        <FieldLabel htmlFor={`value-description-${index}`} className="text-white/80">
+                                            Description <span className="text-white">*</span>
+                                        </FieldLabel>
+                                        <FieldContent>
+                                            <BasicRichEditor
+                                                name={`cards.${index}.description`}
+                                                value={cardsValue?.[index]?.description ?? ""}
+                                            />
+                                            <FieldError errors={[valueForm.formState.errors.cards?.[index]?.description]} />
+                                        </FieldContent>
+                                    </Field>
+                                </FieldGroup>
                             </div>
-                            <FieldGroup className="grid gap-4 md:grid-cols-2">
-                                <Field>
-                                    <FieldLabel htmlFor={`value-icon-${index}`} className="text-white/80">
-                                        Icon <span className="text-white">*</span>
-                                    </FieldLabel>
-                                    <FieldContent>
-                                        <Input
-                                            id={`value-icon-${index}`}
-                                            placeholder="Icon name"
-                                            className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                                            {...valueForm.register(`cards.${index}.icon`)}
-                                        />
-                                        <FieldError errors={[valueForm.formState.errors.cards?.[index]?.icon]} />
-                                    </FieldContent>
-                                </Field>
-                                <Field>
-                                    <FieldLabel htmlFor={`value-title-${index}`} className="text-white/80">
-                                        Title <span className="text-white">*</span>
-                                    </FieldLabel>
-                                    <FieldContent>
-                                        <Input
-                                            id={`value-title-${index}`}
-                                            placeholder="Title"
-                                            className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                                            {...valueForm.register(`cards.${index}.title`)}
-                                        />
-                                        <FieldError errors={[valueForm.formState.errors.cards?.[index]?.title]} />
-                                    </FieldContent>
-                                </Field>
-                                <Field className="md:col-span-2">
-                                    <FieldLabel htmlFor={`value-description-${index}`} className="text-white/80">
-                                        Description <span className="text-white">*</span>
-                                    </FieldLabel>
-                                    <FieldContent>
-                                        <BasicRichEditor
-                                            name={`cards.${index}.description`}
-                                            value={cardsValue?.[index]?.description ?? ""}
-                                        />
-                                        <FieldError errors={[valueForm.formState.errors.cards?.[index]?.description]} />
-                                    </FieldContent>
-                                </Field>
-                            </FieldGroup>
-                        </div>
-                    ))}
-                </div>
-                <Button
-                    type="button"
-                    className="bg-white/10 text-white hover:bg-white/20"
-                    onClick={() => cardFields.append(defaultCard)}
-                >
-                    Add card
-                </Button>
-                <Button
-                    type="submit"
-                    className="w-full bg-white/90 text-black hover:bg-white"
-                    disabled={getLoading || updateLoading || !valueForm.formState.isValid}
-                >
-                    {updateLoading ? "Saving..." : "Save"}
-                </Button>
-            </form>
+                        ))}
+                    </div>
+                    <Button
+                        type="button"
+                        className="bg-white/10 text-white hover:bg-white/20"
+                        onClick={() => cardFields.append(defaultCard)}
+                    >
+                        Add card
+                    </Button>
+                    <Button
+                        type="submit"
+                        className="w-full bg-white/90 text-black hover:bg-white"
+                        disabled={getLoading || updateLoading || !valueForm.formState.isValid}
+                    >
+                        {updateLoading ? "Saving..." : "Save"}
+                    </Button>
+                </form>
+            )}
         </FormProvider>
+    );
+};
+
+const LoadingSkeleton = ({ isRtl }: { isRtl: boolean }) => {
+    return (
+        <div className={cn("space-y-4", isRtl && "home-rtl")}>
+            <CommonLanguageSwitcherCheckbox />
+            <div className="space-y-2">
+                <Skeleton className="h-7 w-40" />
+                <Skeleton className="h-4 w-64" />
+            </div>
+            <Skeleton className="h-28 w-full" />
+            <div className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+            </div>
+            <Skeleton className="h-10 w-full" />
+        </div>
     );
 };
 

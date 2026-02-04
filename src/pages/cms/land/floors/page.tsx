@@ -366,7 +366,6 @@ const LandFloors = () => {
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
     const currentData = data?.[language] ?? null;
-    const hasInitialized = useRef(false);
     const floorsForm = useForm<FloorsFormValues>({
         defaultValues: {
             floors: [defaultFloor],
@@ -381,12 +380,11 @@ const LandFloors = () => {
     });
 
     useEffect(() => {
-        hasInitialized.current = false;
         void get();
-    }, [get, language]);
+    }, [get, language, floorsForm]);
 
     useEffect(() => {
-        if (currentData === null || hasInitialized.current) {
+        if (currentData === null) {
             return;
         }
         if (!currentData.length) {
@@ -403,71 +401,74 @@ const LandFloors = () => {
                 })),
             });
         }
-        hasInitialized.current = true;
     }, [currentData, floorsForm]);
 
     const onSubmit = async (formData: FloorsFormValues) => {
         await update(formData.floors);
     };
 
-    if (getLoading) {
-        return (
-            <div className={cn("space-y-4", isRtl && "home-rtl")}>
-                <CommonLanguageSwitcherCheckbox />
-                <div className="space-y-2">
-                    <Skeleton className="h-7 w-40" />
-                    <Skeleton className="h-4 w-64" />
-                </div>
-                <div className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
-                    <Skeleton className="h-10 w-full" />
-                    <Skeleton className="h-10 w-full" />
-                    <Skeleton className="h-16 w-full" />
-                </div>
-                <Skeleton className="h-10 w-full" />
-            </div>
-        );
-    }
-
     return (
         <FormProvider {...floorsForm}>
-            <form onSubmit={floorsForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
-                <CommonLanguageSwitcherCheckbox />
-                <div className="space-y-1 text-white">
-                    <h1 className="text-2xl font-semibold text-white">Floors</h1>
-                    <p className="text-sm text-white/70">Add floor items</p>
-                </div>
-                <div className="space-y-6">
-                    {floorFields.fields.map((field, index) => (
-                        <FloorFields
-                            key={field.id}
-                            index={index}
-                            control={floorsForm.control}
-                            register={floorsForm.register}
-                            setValue={floorsForm.setValue}
-                            resetField={floorsForm.resetField}
-                            errors={floorsForm.formState.errors}
-                            onRemove={() => floorFields.remove(index)}
-                            canRemove={floorFields.fields.length > 1}
-                            trigger={floorsForm.trigger}
-                        />
-                    ))}
-                </div>
-                <Button
-                    type="button"
-                    className="bg-white/10 text-white hover:bg-white/20"
-                    onClick={() => floorFields.append({ ...defaultFloor })}
-                >
-                    Add floor
-                </Button>
-                <Button
-                    type="submit"
-                    className="w-full bg-white/90 text-black hover:bg-white"
-                    disabled={getLoading || updateLoading || !floorsForm.formState.isValid}
-                >
-                    {updateLoading ? "Saving..." : "Save"}
-                </Button>
-            </form>
+            {getLoading ? (
+                <LoadingSkeleton isRtl={isRtl} />
+            ) : (
+                <form onSubmit={floorsForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
+                    <CommonLanguageSwitcherCheckbox />
+                    <div className="space-y-1 text-white">
+                        <h1 className="text-2xl font-semibold text-white">Floors</h1>
+                        <p className="text-sm text-white/70">Add floor items</p>
+                    </div>
+                    <div className="space-y-6">
+                        {floorFields.fields.map((field, index) => (
+                            <FloorFields
+                                key={field.id}
+                                index={index}
+                                control={floorsForm.control}
+                                register={floorsForm.register}
+                                setValue={floorsForm.setValue}
+                                resetField={floorsForm.resetField}
+                                errors={floorsForm.formState.errors}
+                                onRemove={() => floorFields.remove(index)}
+                                canRemove={floorFields.fields.length > 1}
+                                trigger={floorsForm.trigger}
+                            />
+                        ))}
+                    </div>
+                    <Button
+                        type="button"
+                        className="bg-white/10 text-white hover:bg-white/20"
+                        onClick={() => floorFields.append({ ...defaultFloor })}
+                    >
+                        Add floor
+                    </Button>
+                    <Button
+                        type="submit"
+                        className="w-full bg-white/90 text-black hover:bg-white"
+                        disabled={getLoading || updateLoading || !floorsForm.formState.isValid}
+                    >
+                        {updateLoading ? "Saving..." : "Save"}
+                    </Button>
+                </form>
+            )}
         </FormProvider>
+    );
+};
+
+const LoadingSkeleton = ({ isRtl }: { isRtl: boolean }) => {
+    return (
+        <div className={cn("space-y-4", isRtl && "home-rtl")}>
+            <CommonLanguageSwitcherCheckbox />
+            <div className="space-y-2">
+                <Skeleton className="h-7 w-40" />
+                <Skeleton className="h-4 w-64" />
+            </div>
+            <div className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-16 w-full" />
+            </div>
+            <Skeleton className="h-10 w-full" />
+        </div>
     );
 };
 

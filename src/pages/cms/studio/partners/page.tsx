@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useFieldArray, useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -139,7 +139,6 @@ const StudioPartners = () => {
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
     const openPreview = usePreviewModalStore((state) => state.open);
-    const hasInitialized = useRef(false);
     const partnersForm = useForm<StudioPartnersFormValues>({
         defaultValues: STUDIO_PARTNERS_DEFAULT_VALUES,
         resolver: zodResolver(StudioPartnersZodSchema),
@@ -155,7 +154,6 @@ const StudioPartners = () => {
 
     useEffect(() => {
         let isActive = true;
-        hasInitialized.current = false;
         partnersForm.reset(STUDIO_PARTNERS_DEFAULT_VALUES);
         partnersForm.clearErrors();
 
@@ -164,7 +162,6 @@ const StudioPartners = () => {
             if (!isActive) return;
             if (!result) {
                 partnersForm.reset(STUDIO_PARTNERS_DEFAULT_VALUES);
-                hasInitialized.current = true;
                 return;
             }
             partnersForm.reset({
@@ -176,7 +173,6 @@ const StudioPartners = () => {
                     }))
                     : [],
             });
-            hasInitialized.current = true;
         };
 
         void load();
@@ -195,114 +191,118 @@ const StudioPartners = () => {
         });
     };
 
-    if (getLoading) {
-        return (
-            <div className={cn("space-y-4", isRtl && "home-rtl")}>
-                <CommonLanguageSwitcherCheckbox />
-                <div className="space-y-2">
-                    <Skeleton className="h-7 w-40" />
-                    <Skeleton className="h-4 w-64" />
-                </div>
-                <Skeleton className="h-28 w-full" />
-                <div className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
-                    <Skeleton className="h-10 w-full" />
-                    <Skeleton className="h-10 w-full" />
-                </div>
-                <Skeleton className="h-10 w-full" />
-            </div>
-        );
-    }
-
     return (
         <FormProvider {...partnersForm}>
-            <form onSubmit={partnersForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
-                <CommonLanguageSwitcherCheckbox />
-                <div className="space-y-1 text-white">
-                    <h1 className="text-2xl font-semibold text-white">Studio Partners</h1>
-                    <p className="text-sm text-white/70">Add partner logos and description</p>
-                </div>
-                <Field>
-                    <FieldLabel htmlFor="studio-partners-description" className="text-white/80">
-                        Description <span className="text-white/70">(optional)</span>
-                    </FieldLabel>
-                    <FieldContent>
-                        <BasicRichEditor name="description" value={descriptionValue ?? ""} />
-                        <FieldError errors={[partnersForm.formState.errors.description]} />
-                    </FieldContent>
-                </Field>
-                <Field>
-                    <FieldLabel htmlFor="studio-partners-upload" className="text-white/80">
-                        Partner Logos <span className="text-white">*</span>
-                    </FieldLabel>
-                    <FieldContent>
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-4">
-                                <label
-                                    htmlFor="studio-partners-upload"
-                                    className="relative flex h-28 w-28 cursor-pointer flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border border-dashed border-white/30 bg-white/5 text-xs text-white/70 transition hover:bg-white/10"
-                                >
-                                    <Upload size={22} className="text-white/70" />
-                                    <span className="text-center">Upload images</span>
-                                </label>
-                                <span className="text-xs text-white/60">PNG, JPG up to 5MB each</span>
-                                <span className="text-xs text-white/50">Drag to reorder</span>
-                                <input
-                                    id="studio-partners-upload"
-                                    type="file"
-                                    accept="image/*"
-                                    multiple
-                                    className="hidden"
-                                    onChange={(event) => {
-                                        const files = Array.from(event.target.files ?? []);
-                                        if (!files.length) {
-                                            return;
-                                        }
-                                        fileFields.append(
-                                            files.map((file) => ({
-                                                file,
-                                                existing: undefined,
-                                            }))
-                                        );
-                                        event.currentTarget.value = "";
-                                    }}
-                                />
-                            </div>
-                            <FieldError errors={[partnersForm.formState.errors.files as { message?: string } | undefined]} />
-                            {fileFields.fields.length ? (
-                                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                                    {fileFields.fields.map((field, index) => (
-                                        <PartnerThumbnail
-                                            key={field.id}
-                                            index={index}
-                                            file={watchedFiles[index]?.file}
-                                            existing={watchedFiles[index]?.existing}
-                                            canRemove={fileFields.fields.length > 1}
-                                            onRemove={() => fileFields.remove(index)}
-                                            onMove={fileFields.move}
-                                            onOpenPreview={({ url, isObjectUrl }) => {
-                                                openPreview({
-                                                    type: "image",
-                                                    url,
-                                                    title: "Studio Partner File",
-                                                    isObjectUrl,
-                                                });
-                                            }}
-                                        />
-                                    ))}
+            {getLoading ? (
+                <LoadingSkeleton isRtl={isRtl} />
+            ) : (
+                <form onSubmit={partnersForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
+                    <CommonLanguageSwitcherCheckbox />
+                    <div className="space-y-1 text-white">
+                        <h1 className="text-2xl font-semibold text-white">Studio Partners</h1>
+                        <p className="text-sm text-white/70">Add partner logos and description</p>
+                    </div>
+                    <Field>
+                        <FieldLabel htmlFor="studio-partners-description" className="text-white/80">
+                            Description <span className="text-white/70">(optional)</span>
+                        </FieldLabel>
+                        <FieldContent>
+                            <BasicRichEditor name="description" value={descriptionValue ?? ""} />
+                            <FieldError errors={[partnersForm.formState.errors.description]} />
+                        </FieldContent>
+                    </Field>
+                    <Field>
+                        <FieldLabel htmlFor="studio-partners-upload" className="text-white/80">
+                            Partner Logos <span className="text-white">*</span>
+                        </FieldLabel>
+                        <FieldContent>
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-4">
+                                    <label
+                                        htmlFor="studio-partners-upload"
+                                        className="relative flex h-28 w-28 cursor-pointer flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border border-dashed border-white/30 bg-white/5 text-xs text-white/70 transition hover:bg-white/10"
+                                    >
+                                        <Upload size={22} className="text-white/70" />
+                                        <span className="text-center">Upload images</span>
+                                    </label>
+                                    <span className="text-xs text-white/60">PNG, JPG up to 5MB each</span>
+                                    <span className="text-xs text-white/50">Drag to reorder</span>
+                                    <input
+                                        id="studio-partners-upload"
+                                        type="file"
+                                        accept="image/*"
+                                        multiple
+                                        className="hidden"
+                                        onChange={(event) => {
+                                            const files = Array.from(event.target.files ?? []);
+                                            if (!files.length) {
+                                                return;
+                                            }
+                                            fileFields.append(
+                                                files.map((file) => ({
+                                                    file,
+                                                    existing: undefined,
+                                                }))
+                                            );
+                                            event.currentTarget.value = "";
+                                        }}
+                                    />
                                 </div>
-                            ) : null}
-                        </div>
-                    </FieldContent>
-                </Field>
-                <Button
-                    type="submit"
-                    className="w-full bg-white/90 text-black hover:bg-white"
-                    disabled={getLoading || updateLoading || !partnersForm.formState.isValid}
-                >
-                    {updateLoading ? "Saving..." : "Save"}
-                </Button>
-            </form>
+                                <FieldError errors={[partnersForm.formState.errors.files as { message?: string } | undefined]} />
+                                {fileFields.fields.length ? (
+                                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                                        {fileFields.fields.map((field, index) => (
+                                            <PartnerThumbnail
+                                                key={field.id}
+                                                index={index}
+                                                file={watchedFiles[index]?.file}
+                                                existing={watchedFiles[index]?.existing}
+                                                canRemove={fileFields.fields.length > 1}
+                                                onRemove={() => fileFields.remove(index)}
+                                                onMove={fileFields.move}
+                                                onOpenPreview={({ url, isObjectUrl }) => {
+                                                    openPreview({
+                                                        type: "image",
+                                                        url,
+                                                        title: "Studio Partner File",
+                                                        isObjectUrl,
+                                                    });
+                                                }}
+                                            />
+                                        ))}
+                                    </div>
+                                ) : null}
+                            </div>
+                        </FieldContent>
+                    </Field>
+                    <Button
+                        type="submit"
+                        className="w-full bg-white/90 text-black hover:bg-white"
+                        disabled={getLoading || updateLoading || !partnersForm.formState.isValid}
+                    >
+                        {updateLoading ? "Saving..." : "Save"}
+                    </Button>
+                </form>
+            )}
         </FormProvider>
+    );
+};
+
+const LoadingSkeleton = ({ isRtl }: { isRtl: boolean }) => {
+    return (
+        <div className={cn("space-y-4", isRtl && "home-rtl")}>
+            <CommonLanguageSwitcherCheckbox />
+            <div className="space-y-2">
+                <Skeleton className="h-7 w-40" />
+                <Skeleton className="h-4 w-64" />
+            </div>
+            <Skeleton className="h-28 w-full" />
+            <div className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+            </div>
+            <Skeleton className="h-10 w-full" />
+        </div>
     );
 };
 

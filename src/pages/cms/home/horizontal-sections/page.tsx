@@ -547,7 +547,6 @@ const HorizontalSectionsPage = () => {
     const { data: horizontalData, get, update, getLoading, updateLoading } = useHomeHorizontalStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
-    const hasInitialized = useRef(false);
     const sectionsForm = useForm<HorizontalFormValues>({
         defaultValues: {
             sections: defaultSections,
@@ -562,12 +561,11 @@ const HorizontalSectionsPage = () => {
     })
 
     useEffect(() => {
-        hasInitialized.current = false;
         void get();
-    }, [get, language]);
+    }, [get, language, sectionsForm]);
 
     useEffect(() => {
-        if (horizontalData === null || hasInitialized.current) {
+        if (horizontalData === null || horizontalData === undefined) {
             return;
         }
         if (horizontalData.length === 0) {
@@ -588,7 +586,6 @@ const HorizontalSectionsPage = () => {
                 })),
             });
         }
-        hasInitialized.current = true;
     }, [horizontalData, sectionsForm]);
 
     const onSubmit = async (data: HorizontalFormValues) => {
@@ -604,57 +601,57 @@ const HorizontalSectionsPage = () => {
         await update(payload);
     }
 
-    if (getLoading) {
-        return <SectionsSkeleton isRtl={isRtl} />;
-    }
-
     return (
         <FormProvider {...sectionsForm}>
-            <form onSubmit={sectionsForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
-                <CommonLanguageSwitcherCheckbox />
-                <PageHeader />
-                <div className="space-y-6">
-                    {sectionFields.fields.map((field, index) => (
-                        <SectionFields
-                            key={field.id}
-                            index={index}
-                            control={sectionsForm.control}
-                            register={sectionsForm.register}
-                            setValue={sectionsForm.setValue}
-                            resetField={sectionsForm.resetField}
-                            errors={sectionsForm.formState.errors}
-                            onRemove={() => sectionFields.remove(index)}
-                            canRemove={sectionFields.fields.length > 1}
-                            trigger={sectionsForm.trigger}
-                        />
-                    ))}
-                </div>
-                <div className="flex flex-col gap-3 md:flex-row">
-                    <Button
-                        type="button"
-                        className="bg-white/10 text-white hover:bg-white/20 flex-1"
-                        onClick={() =>
-                            sectionFields.append({
-                                linkType: "image",
-                                linkUrl: "",
-                                linkFile: undefined,
-                                title: ["", ""],
-                                slogan: "",
-                                description: [{ value: "" }],
-                            })
-                        }
-                    >
-                        Add section
-                    </Button>
-                    <Button
-                        type="submit"
-                        className="bg-white/90 text-black hover:bg-white flex-4"
-                        disabled={getLoading || updateLoading || !sectionsForm.formState.isValid}
-                    >
-                        {getLoading || updateLoading ? "Saving..." : "Save"}
-                    </Button>
-                </div>
-            </form>
+            {getLoading ? (
+                <SectionsSkeleton isRtl={isRtl} />
+            ) : (
+                <form onSubmit={sectionsForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
+                    <CommonLanguageSwitcherCheckbox />
+                    <PageHeader />
+                    <div className="space-y-6">
+                        {sectionFields.fields.map((field, index) => (
+                            <SectionFields
+                                key={field.id}
+                                index={index}
+                                control={sectionsForm.control}
+                                register={sectionsForm.register}
+                                setValue={sectionsForm.setValue}
+                                resetField={sectionsForm.resetField}
+                                errors={sectionsForm.formState.errors}
+                                onRemove={() => sectionFields.remove(index)}
+                                canRemove={sectionFields.fields.length > 1}
+                                trigger={sectionsForm.trigger}
+                            />
+                        ))}
+                    </div>
+                    <div className="flex flex-col gap-3 md:flex-row">
+                        <Button
+                            type="button"
+                            className="bg-white/10 text-white hover:bg-white/20 flex-1"
+                            onClick={() =>
+                                sectionFields.append({
+                                    linkType: "image",
+                                    linkUrl: "",
+                                    linkFile: undefined,
+                                    title: ["", ""],
+                                    slogan: "",
+                                    description: [{ value: "" }],
+                                })
+                            }
+                        >
+                            Add section
+                        </Button>
+                        <Button
+                            type="submit"
+                            className="bg-white/90 text-black hover:bg-white flex-4"
+                            disabled={getLoading || updateLoading || !sectionsForm.formState.isValid}
+                        >
+                            {getLoading || updateLoading ? "Saving..." : "Save"}
+                        </Button>
+                    </div>
+                </form>
+            )}
         </FormProvider>
     )
 }

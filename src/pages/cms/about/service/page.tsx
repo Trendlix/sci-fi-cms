@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useFieldArray, useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -39,7 +39,6 @@ const AboutService = () => {
     const isRtl = language === "ar";
     const currentData = data?.[language];
     const currentSection = currentData?.service;
-    const hasInitialized = useRef(false);
     const isReady = !getLoading && currentData !== undefined && currentSection !== undefined;
     const serviceForm = useForm<AboutServiceFormValues>({
         defaultValues: {
@@ -82,23 +81,18 @@ const AboutService = () => {
     });
 
     useEffect(() => {
-        hasInitialized.current = false;
         serviceForm.reset({ description: "", cards: [defaultCard] });
         serviceForm.clearErrors();
         void get("service");
     }, [get, language, serviceForm]);
 
     useEffect(() => {
-        if (hasInitialized.current) {
-            return;
-        }
         if (currentSection === undefined) {
             return;
         }
         if (!currentSection) {
             serviceForm.reset({ description: "", cards: [defaultCard] });
             serviceForm.clearErrors();
-            hasInitialized.current = true;
             return;
         }
         serviceForm.reset({
@@ -113,152 +107,155 @@ const AboutService = () => {
                 : [defaultCard],
         });
         serviceForm.clearErrors();
-        hasInitialized.current = true;
     }, [currentSection, serviceForm]);
 
     const onSubmit = async (formData: AboutServiceFormValues) => {
         await update("service", formData);
     };
 
-    if (getLoading || !isReady) {
-        return (
-            <div className={cn("space-y-4", isRtl && "home-rtl")}>
-                <CommonLanguageSwitcherCheckbox />
-                <div className="space-y-2">
-                    <Skeleton className="h-7 w-40" />
-                    <Skeleton className="h-4 w-64" />
-                </div>
-                <Skeleton className="h-28 w-full" />
-                <div className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
-                    <Skeleton className="h-10 w-full" />
-                    <Skeleton className="h-10 w-full" />
-                    <Skeleton className="h-10 w-full" />
-                </div>
-                <Skeleton className="h-10 w-full" />
-            </div>
-        );
-    }
-
     return (
         <FormProvider {...serviceForm}>
-            <form onSubmit={serviceForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
-                <CommonLanguageSwitcherCheckbox />
-                <div className="space-y-1 text-white">
-                    <h1 className="text-2xl font-semibold text-white">Service Section</h1>
-                    <p className="text-sm text-white/70">Add service cards</p>
-                </div>
-                <Field>
-                    <FieldLabel htmlFor="service-description" className="text-white/80">
-                        Description <span className="text-white">*</span>
-                    </FieldLabel>
-                    <FieldContent>
-                        <BasicRichEditor
-                            name="description"
-                            value={descriptionValue ?? ""}
-                            onChange={(value) =>
-                                serviceForm.setValue("description", value ?? "", { shouldValidate: true })
-                            }
-                        />
-                        <FieldError errors={[serviceForm.formState.errors.description]} />
-                    </FieldContent>
-                </Field>
-                <div className="space-y-6">
-                    {cardFields.fields.map((field, index) => (
-                        <div key={field.id} className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
-                            <div className="flex items-center justify-between">
-                                <h2 className="text-lg font-semibold text-white">Card {index + 1}</h2>
-                                <Button
-                                    type="button"
-                                    className="bg-white/10 text-white hover:bg-white/500"
-                                    disabled={cardFields.fields.length <= 1}
-                                    onClick={() => cardFields.remove(index)}
-                                >
-                                    Remove
-                                </Button>
-                            </div>
-                            <FieldGroup className="grid gap-4 md:grid-cols-2">
-                                <Field>
-                                    <FieldLabel htmlFor={`service-tag-${index}`} className="text-white/80">
-                                        Tag <span className="text-white">*</span>
-                                    </FieldLabel>
-                                    <FieldContent>
-                                        <Input
-                                            id={`service-tag-${index}`}
-                                            placeholder="Tag"
-                                            className="border-white/500 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                                            {...serviceForm.register(`cards.${index}.tag`)}
-                                        />
-                                        <FieldError errors={[serviceForm.formState.errors.cards?.[index]?.tag]} />
-                                    </FieldContent>
-                                </Field>
-                                <Field>
-                                    <FieldLabel htmlFor={`service-icon-${index}`} className="text-white/80">
-                                        Icon <span className="text-white">*</span>
-                                    </FieldLabel>
-                                    <FieldContent>
-                                        <Input
-                                            id={`service-icon-${index}`}
-                                            placeholder="Icon name"
-                                            className="border-white/500 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                                            {...serviceForm.register(`cards.${index}.icon`)}
-                                        />
-                                        <FieldError errors={[serviceForm.formState.errors.cards?.[index]?.icon]} />
-                                    </FieldContent>
-                                </Field>
-                                <Field>
-                                    <FieldLabel htmlFor={`service-title-${index}`} className="text-white/80">
-                                        Title <span className="text-white">*</span>
-                                    </FieldLabel>
-                                    <FieldContent>
-                                        <Input
-                                            id={`service-title-${index}`}
-                                            placeholder="Title"
-                                            className="border-white/500 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                                            {...serviceForm.register(`cards.${index}.title`)}
-                                        />
-                                        <FieldError errors={[serviceForm.formState.errors.cards?.[index]?.title]} />
-                                    </FieldContent>
-                                </Field>
-                                <Field className="md:col-span-2">
-                                    <FieldLabel htmlFor={`service-description-${index}`} className="text-white/80">
-                                        Description <span className="text-white">*</span>
-                                    </FieldLabel>
-                                    <FieldContent>
-                                        <BasicRichEditor
-                                            name={`cards.${index}.description`}
-                                            value={cardsValue?.[index]?.description ?? ""}
-                                            onChange={(value) =>
-                                                serviceForm.setValue(`cards.${index}.description`, value ?? "", { shouldValidate: true })
-                                            }
-                                        />
-                                        <FieldError errors={[serviceForm.formState.errors.cards?.[index]?.description]} />
-                                    </FieldContent>
-                                </Field>
-                            </FieldGroup>
-                        </div>
-                    ))}
-                </div>
-                <Button
-                    type="button"
-                    className="bg-white/10 text-white hover:bg-white/500"
-                    onClick={() => cardFields.append(defaultCard)}
-                >
-                    Add card
-                </Button>
-                {errorSummary.length > 0 && (
-                    <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
-                        Issues: {errorSummary.join(" • ")}
+            {getLoading || !isReady ? (
+                <LoadingSkeleton isRtl={isRtl} />
+            ) : (
+                <form onSubmit={serviceForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
+                    <CommonLanguageSwitcherCheckbox />
+                    <div className="space-y-1 text-white">
+                        <h1 className="text-2xl font-semibold text-white">Service Section</h1>
+                        <p className="text-sm text-white/70">Add service cards</p>
                     </div>
-                )}
-                <Button
-                    type="submit"
-                    className="w-full bg-white/90 text-black hover:bg-white"
-                    disabled={getLoading || updateLoading || !serviceForm.formState.isValid}
-                >
-                    {updateLoading ? "Saving..." : "Save"}
-                </Button>
-            </form>
+                    <Field>
+                        <FieldLabel htmlFor="service-description" className="text-white/80">
+                            Description <span className="text-white">*</span>
+                        </FieldLabel>
+                        <FieldContent>
+                            <BasicRichEditor
+                                name="description"
+                                value={descriptionValue ?? ""}
+                                onChange={(value) =>
+                                    serviceForm.setValue("description", value ?? "", { shouldValidate: true })
+                                }
+                            />
+                            <FieldError errors={[serviceForm.formState.errors.description]} />
+                        </FieldContent>
+                    </Field>
+                    <div className="space-y-6">
+                        {cardFields.fields.map((field, index) => (
+                            <div key={field.id} className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-lg font-semibold text-white">Card {index + 1}</h2>
+                                    <Button
+                                        type="button"
+                                        className="bg-white/10 text-white hover:bg-white/500"
+                                        disabled={cardFields.fields.length <= 1}
+                                        onClick={() => cardFields.remove(index)}
+                                    >
+                                        Remove
+                                    </Button>
+                                </div>
+                                <FieldGroup className="grid gap-4 md:grid-cols-2">
+                                    <Field>
+                                        <FieldLabel htmlFor={`service-tag-${index}`} className="text-white/80">
+                                            Tag <span className="text-white">*</span>
+                                        </FieldLabel>
+                                        <FieldContent>
+                                            <Input
+                                                id={`service-tag-${index}`}
+                                                placeholder="Tag"
+                                                className="border-white/500 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                                {...serviceForm.register(`cards.${index}.tag`)}
+                                            />
+                                            <FieldError errors={[serviceForm.formState.errors.cards?.[index]?.tag]} />
+                                        </FieldContent>
+                                    </Field>
+                                    <Field>
+                                        <FieldLabel htmlFor={`service-icon-${index}`} className="text-white/80">
+                                            Icon <span className="text-white">*</span>
+                                        </FieldLabel>
+                                        <FieldContent>
+                                            <Input
+                                                id={`service-icon-${index}`}
+                                                placeholder="Icon name"
+                                                className="border-white/500 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                                {...serviceForm.register(`cards.${index}.icon`)}
+                                            />
+                                            <FieldError errors={[serviceForm.formState.errors.cards?.[index]?.icon]} />
+                                        </FieldContent>
+                                    </Field>
+                                    <Field>
+                                        <FieldLabel htmlFor={`service-title-${index}`} className="text-white/80">
+                                            Title <span className="text-white">*</span>
+                                        </FieldLabel>
+                                        <FieldContent>
+                                            <Input
+                                                id={`service-title-${index}`}
+                                                placeholder="Title"
+                                                className="border-white/500 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                                {...serviceForm.register(`cards.${index}.title`)}
+                                            />
+                                            <FieldError errors={[serviceForm.formState.errors.cards?.[index]?.title]} />
+                                        </FieldContent>
+                                    </Field>
+                                    <Field className="md:col-span-2">
+                                        <FieldLabel htmlFor={`service-description-${index}`} className="text-white/80">
+                                            Description <span className="text-white">*</span>
+                                        </FieldLabel>
+                                        <FieldContent>
+                                            <BasicRichEditor
+                                                name={`cards.${index}.description`}
+                                                value={cardsValue?.[index]?.description ?? ""}
+                                                onChange={(value) =>
+                                                    serviceForm.setValue(`cards.${index}.description`, value ?? "", { shouldValidate: true })
+                                                }
+                                            />
+                                            <FieldError errors={[serviceForm.formState.errors.cards?.[index]?.description]} />
+                                        </FieldContent>
+                                    </Field>
+                                </FieldGroup>
+                            </div>
+                        ))}
+                    </div>
+                    <Button
+                        type="button"
+                        className="bg-white/10 text-white hover:bg-white/500"
+                        onClick={() => cardFields.append(defaultCard)}
+                    >
+                        Add card
+                    </Button>
+                    {errorSummary.length > 0 && (
+                        <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                            Issues: {errorSummary.join(" • ")}
+                        </div>
+                    )}
+                    <Button
+                        type="submit"
+                        className="w-full bg-white/90 text-black hover:bg-white"
+                        disabled={getLoading || updateLoading || !serviceForm.formState.isValid}
+                    >
+                        {updateLoading ? "Saving..." : "Save"}
+                    </Button>
+                </form>
+            )}
         </FormProvider>
+    );
+};
+
+const LoadingSkeleton = ({ isRtl }: { isRtl: boolean }) => {
+    return (
+        <div className={cn("space-y-4", isRtl && "home-rtl")}>
+            <CommonLanguageSwitcherCheckbox />
+            <div className="space-y-2">
+                <Skeleton className="h-7 w-40" />
+                <Skeleton className="h-4 w-64" />
+            </div>
+            <Skeleton className="h-28 w-full" />
+            <div className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+            </div>
+            <Skeleton className="h-10 w-full" />
+        </div>
     );
 };
 

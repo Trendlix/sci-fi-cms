@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useFieldArray, useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -38,7 +38,6 @@ const StudioWhyUs = () => {
     const { get, update, getLoading, updateLoading } = useStudioWhyUsStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
-    const hasInitialized = useRef(false);
     const whyUsForm = useForm<StudioWhyUsFormValues>({
         defaultValues: STUDIO_WHY_US_DEFAULT_VALUES,
         resolver: zodResolver(StudioWhyUsZodSchema),
@@ -53,7 +52,6 @@ const StudioWhyUs = () => {
 
     useEffect(() => {
         let isActive = true;
-        hasInitialized.current = false;
         whyUsForm.reset(STUDIO_WHY_US_DEFAULT_VALUES);
         whyUsForm.clearErrors();
 
@@ -62,7 +60,6 @@ const StudioWhyUs = () => {
             if (!isActive) return;
             if (!result) {
                 whyUsForm.reset(STUDIO_WHY_US_DEFAULT_VALUES);
-                hasInitialized.current = true;
                 return;
             }
             whyUsForm.reset({
@@ -74,7 +71,6 @@ const StudioWhyUs = () => {
                     }))
                     : [defaultLine],
             });
-            hasInitialized.current = true;
         };
 
         void load();
@@ -87,102 +83,106 @@ const StudioWhyUs = () => {
         await update(formData);
     };
 
-    if (getLoading) {
-        return (
-            <div className={cn("space-y-4", isRtl && "home-rtl")}>
-                <CommonLanguageSwitcherCheckbox />
-                <div className="space-y-2">
-                    <Skeleton className="h-7 w-40" />
-                    <Skeleton className="h-4 w-64" />
-                </div>
-                <Skeleton className="h-28 w-full" />
-                <div className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
-                    <Skeleton className="h-10 w-full" />
-                    <Skeleton className="h-10 w-full" />
-                </div>
-                <Skeleton className="h-10 w-full" />
-            </div>
-        );
-    }
-
     return (
         <FormProvider {...whyUsForm}>
-            <form onSubmit={whyUsForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
-                <CommonLanguageSwitcherCheckbox />
-                <div className="space-y-1 text-white">
-                    <h1 className="text-2xl font-semibold text-white">Studio Why Us</h1>
-                    <p className="text-sm text-white/70">Add why-us lines and description</p>
-                </div>
-                <Field>
-                    <FieldLabel htmlFor="studio-why-us-description" className="text-white/80">
-                        Description <span className="text-white">*</span>
-                    </FieldLabel>
-                    <FieldContent>
-                        <BasicRichEditor name="description" value={descriptionValue ?? ""} />
-                        <FieldError errors={[whyUsForm.formState.errors.description]} />
-                    </FieldContent>
-                </Field>
-                <div className="space-y-6">
-                    {lineFields.fields.map((field, index) => (
-                        <div key={field.id} className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
-                            <div className="flex items-center justify-between">
-                                <h2 className="text-lg font-semibold text-white">Line {index + 1}</h2>
-                                <Button
-                                    type="button"
-                                    className="bg-white/10 text-white hover:bg-white/20"
-                                    disabled={lineFields.fields.length <= 1}
-                                    onClick={() => lineFields.remove(index)}
-                                >
-                                    Remove
-                                </Button>
+            {getLoading ? (
+                <LoadingSkeleton isRtl={isRtl} />
+            ) : (
+                <form onSubmit={whyUsForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
+                    <CommonLanguageSwitcherCheckbox />
+                    <div className="space-y-1 text-white">
+                        <h1 className="text-2xl font-semibold text-white">Studio Why Us</h1>
+                        <p className="text-sm text-white/70">Add why-us lines and description</p>
+                    </div>
+                    <Field>
+                        <FieldLabel htmlFor="studio-why-us-description" className="text-white/80">
+                            Description <span className="text-white">*</span>
+                        </FieldLabel>
+                        <FieldContent>
+                            <BasicRichEditor name="description" value={descriptionValue ?? ""} />
+                            <FieldError errors={[whyUsForm.formState.errors.description]} />
+                        </FieldContent>
+                    </Field>
+                    <div className="space-y-6">
+                        {lineFields.fields.map((field, index) => (
+                            <div key={field.id} className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-lg font-semibold text-white">Line {index + 1}</h2>
+                                    <Button
+                                        type="button"
+                                        className="bg-white/10 text-white hover:bg-white/20"
+                                        disabled={lineFields.fields.length <= 1}
+                                        onClick={() => lineFields.remove(index)}
+                                    >
+                                        Remove
+                                    </Button>
+                                </div>
+                                <FieldGroup className="grid gap-4 md:grid-cols-2">
+                                    <Field>
+                                        <FieldLabel htmlFor={`studio-why-us-icon-${index}`} className="text-white/80">
+                                            Icon <span className="text-white">*</span>
+                                        </FieldLabel>
+                                        <FieldContent>
+                                            <Input
+                                                id={`studio-why-us-icon-${index}`}
+                                                placeholder="Icon name"
+                                                className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                                {...whyUsForm.register(`lines.${index}.icon`)}
+                                            />
+                                            <FieldError errors={[whyUsForm.formState.errors.lines?.[index]?.icon]} />
+                                        </FieldContent>
+                                    </Field>
+                                    <Field className="md:col-span-2">
+                                        <FieldLabel htmlFor={`studio-why-us-line-${index}`} className="text-white/80">
+                                            Line <span className="text-white">*</span>
+                                        </FieldLabel>
+                                        <FieldContent>
+                                            <BasicRichEditor
+                                                name={`lines.${index}.line`}
+                                                value={whyUsForm.watch(`lines.${index}.line`) ?? ""}
+                                            />
+                                            <FieldError errors={[whyUsForm.formState.errors.lines?.[index]?.line]} />
+                                        </FieldContent>
+                                    </Field>
+                                </FieldGroup>
                             </div>
-                            <FieldGroup className="grid gap-4 md:grid-cols-2">
-                                <Field>
-                                    <FieldLabel htmlFor={`studio-why-us-icon-${index}`} className="text-white/80">
-                                        Icon <span className="text-white">*</span>
-                                    </FieldLabel>
-                                    <FieldContent>
-                                        <Input
-                                            id={`studio-why-us-icon-${index}`}
-                                            placeholder="Icon name"
-                                            className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                                            {...whyUsForm.register(`lines.${index}.icon`)}
-                                        />
-                                        <FieldError errors={[whyUsForm.formState.errors.lines?.[index]?.icon]} />
-                                    </FieldContent>
-                                </Field>
-                                <Field className="md:col-span-2">
-                                    <FieldLabel htmlFor={`studio-why-us-line-${index}`} className="text-white/80">
-                                        Line <span className="text-white">*</span>
-                                    </FieldLabel>
-                                    <FieldContent>
-                                        <BasicRichEditor
-                                            name={`lines.${index}.line`}
-                                            value={whyUsForm.watch(`lines.${index}.line`) ?? ""}
-                                        />
-                                        <FieldError errors={[whyUsForm.formState.errors.lines?.[index]?.line]} />
-                                    </FieldContent>
-                                </Field>
-                            </FieldGroup>
-                        </div>
-                    ))}
-                </div>
-                <Button
-                    type="button"
-                    className="bg-white/10 text-white hover:bg-white/20"
-                    onClick={() => lineFields.append(defaultLine)}
-                >
-                    Add line
-                </Button>
-                <Button
-                    type="submit"
-                    className="w-full bg-white/90 text-black hover:bg-white"
-                    disabled={getLoading || updateLoading || !whyUsForm.formState.isValid}
-                >
-                    {updateLoading ? "Saving..." : "Save"}
-                </Button>
-            </form>
+                        ))}
+                    </div>
+                    <Button
+                        type="button"
+                        className="bg-white/10 text-white hover:bg-white/20"
+                        onClick={() => lineFields.append(defaultLine)}
+                    >
+                        Add line
+                    </Button>
+                    <Button
+                        type="submit"
+                        className="w-full bg-white/90 text-black hover:bg-white"
+                        disabled={getLoading || updateLoading || !whyUsForm.formState.isValid}
+                    >
+                        {updateLoading ? "Saving..." : "Save"}
+                    </Button>
+                </form>
+            )}
         </FormProvider>
+    );
+};
+
+const LoadingSkeleton = ({ isRtl }: { isRtl: boolean }) => {
+    return (
+        <div className={cn("space-y-4", isRtl && "home-rtl")}>
+            <CommonLanguageSwitcherCheckbox />
+            <div className="space-y-2">
+                <Skeleton className="h-7 w-40" />
+                <Skeleton className="h-4 w-64" />
+            </div>
+            <Skeleton className="h-28 w-full" />
+            <div className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+            </div>
+            <Skeleton className="h-10 w-full" />
+        </div>
     );
 };
 

@@ -193,30 +193,12 @@ const EventsProgram = () => {
         });
     };
 
-    if (getLoading) {
-        return (
-            <div className={cn("space-y-4", isRtl && "home-rtl")}>
-                <CommonLanguageSwitcherCheckbox />
-                <div className="space-y-2">
-                    <Skeleton className="h-7 w-40" />
-                    <Skeleton className="h-4 w-64" />
-                </div>
-                {programCards.map((card) => (
-                    <div key={card.key} className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
-                        <Skeleton className="h-6 w-32" />
-                        <Skeleton className="h-10 w-full" />
-                        <Skeleton className="h-24 w-full" />
-                        <Skeleton className="h-10 w-full" />
-                    </div>
-                ))}
-                <Skeleton className="h-10 w-full" />
-            </div>
-        );
-    }
-
     return (
         <FormProvider {...programForm}>
-            <form onSubmit={programForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
+            {getLoading ? (
+                <LoadingSkeleton isRtl={isRtl} programCards={programCards} />
+            ) : (
+                <form onSubmit={programForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
                 <CommonLanguageSwitcherCheckbox />
                 <div className="space-y-1 text-white">
                     <h1 className="text-2xl font-semibold text-white">Events Program</h1>
@@ -276,8 +258,30 @@ const EventsProgram = () => {
                 >
                     {updateLoading ? "Saving..." : "Save"}
                 </Button>
-            </form>
+                </form>
+            )}
         </FormProvider>
+    );
+};
+
+const LoadingSkeleton = ({ isRtl, programCards }: { isRtl: boolean; programCards: ReadonlyArray<{ key: string }> }) => {
+    return (
+        <div className={cn("space-y-4", isRtl && "home-rtl")}>
+            <CommonLanguageSwitcherCheckbox />
+            <div className="space-y-2">
+                <Skeleton className="h-7 w-40" />
+                <Skeleton className="h-4 w-64" />
+            </div>
+            {programCards.map((card) => (
+                <div key={card.key} className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
+                    <Skeleton className="h-6 w-32" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-24 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                </div>
+            ))}
+            <Skeleton className="h-10 w-full" />
+        </div>
     );
 };
 

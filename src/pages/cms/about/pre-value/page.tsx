@@ -247,7 +247,6 @@ const AboutPreValue = () => {
     const openPreview = usePreviewModalStore((state) => state.open);
     const currentData = data?.[language];
     const currentSection = currentData?.preValue;
-    const hasInitialized = useRef(false);
     const isReady = !getLoading && currentData !== undefined && currentSection !== undefined;
     const preValueForm = useForm<AboutPreValueFormValues>({
         defaultValues: {
@@ -262,7 +261,6 @@ const AboutPreValue = () => {
     });
 
     useEffect(() => {
-        hasInitialized.current = false;
         preValueForm.reset({
             title: ["", "", "", "", ""],
             description: "",
@@ -275,9 +273,6 @@ const AboutPreValue = () => {
     }, [get, language, preValueForm]);
 
     useEffect(() => {
-        if (hasInitialized.current) {
-            return;
-        }
         if (currentSection === undefined) {
             return;
         }
@@ -289,7 +284,6 @@ const AboutPreValue = () => {
                 linkUrl: "",
                 linkFile: undefined,
             });
-            hasInitialized.current = true;
             return;
         }
         const previousType = resolveLinkType(currentSection.file?.contentType, currentSection.file?.url);
@@ -300,7 +294,6 @@ const AboutPreValue = () => {
             linkUrl: currentSection.file?.url ?? "",
             linkFile: undefined,
         });
-        hasInitialized.current = true;
     }, [currentSection, preValueForm]);
 
     const onSubmit = async (formData: AboutPreValueFormValues) => {
@@ -361,95 +354,99 @@ const AboutPreValue = () => {
         }, 0);
     };
 
-    if (getLoading || !isReady) {
-        return (
-            <div className={cn("space-y-4", isRtl && "home-rtl")}>
-                <CommonLanguageSwitcherCheckbox />
-                <div className="space-y-2">
-                    <Skeleton className="h-7 w-40" />
-                    <Skeleton className="h-4 w-64" />
-                </div>
-                <div className="grid gap-4 md:grid-cols-3">
-                    {Array.from({ length: 5 }).map((_, index) => (
-                        <Skeleton key={`pre-value-title-skeleton-${index}`} className="h-10 w-full" />
-                    ))}
-                </div>
-                <Skeleton className="h-28 w-full" />
-                <Skeleton className="h-10 w-full" />
-            </div>
-        );
-    }
-
     return (
         <FormProvider {...preValueForm}>
-            <form onSubmit={preValueForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
-                <CommonLanguageSwitcherCheckbox />
-                <div className="space-y-1 text-white">
-                    <h1 className="text-2xl font-semibold text-white">Pre Value</h1>
-                    <p className="text-sm text-white/70">Add the pre-value title and description</p>
-                </div>
-                <FieldGroup className="grid gap-4 md:grid-cols-3">
-                    {Array.from({ length: 5 }).map((_, index) => (
-                        <Field key={`pre-value-title-${index}`}>
-                            <FieldLabel htmlFor={`pre-value-title-${index}`} className="text-white/80">
-                                Title chunk {index + 1} <span className="text-white">*</span>
-                            </FieldLabel>
-                            <FieldContent>
-                                <Input
-                                    id={`pre-value-title-${index}`}
-                                    placeholder={`Word ${index + 1}`}
-                                    className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                                    {...preValueForm.register(`title.${index}`)}
-                                />
-                                <FieldError errors={[preValueForm.formState.errors.title?.[index]]} />
-                            </FieldContent>
-                        </Field>
-                    ))}
-                </FieldGroup>
-                <Field>
-                    <FieldLabel htmlFor="pre-value-description" className="text-white/80">
-                        Description <span className="text-white">*</span>
-                    </FieldLabel>
-                    <FieldContent>
-                        <BasicRichEditor name="description" value={descriptionValue ?? ""} />
-                        <FieldError errors={[preValueForm.formState.errors.description]} />
-                    </FieldContent>
-                </Field>
-                <FieldGroup className="grid gap-4 md:grid-cols-[160px_minmax(0,1fr)] items-end">
-                    <LinkTypeField
-                        control={preValueForm.control}
-                        resetField={preValueForm.resetField}
-                        onChangeType={handleTypeChange}
-                    />
-                    <LinkTargetField
-                        control={preValueForm.control}
-                        register={preValueForm.register}
-                        linkType={linkType}
-                        linkUrl={linkUrl}
-                        linkUrlError={linkUrlError}
-                        linkFileError={linkFileError}
-                        filePreviewUrl={filePreviewUrl}
-                        onOpenPreview={() => {
-                            if (!filePreviewUrl) {
-                                return;
-                            }
-                            openPreview({
-                                type: linkType ?? "image",
-                                url: filePreviewUrl,
-                                title: "Pre Value Preview",
-                            });
-                        }}
-                    />
-                </FieldGroup>
-                <Button
-                    type="submit"
-                    className="w-full bg-white/90 text-black hover:bg-white"
-                    disabled={getLoading || updateLoading || !preValueForm.formState.isValid}
-                >
-                    {updateLoading ? "Saving..." : "Save"}
-                </Button>
-            </form>
+            {getLoading || !isReady ? (
+                <LoadingSkeleton isRtl={isRtl} />
+            ) : (
+                <form onSubmit={preValueForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
+                    <CommonLanguageSwitcherCheckbox />
+                    <div className="space-y-1 text-white">
+                        <h1 className="text-2xl font-semibold text-white">Pre Value</h1>
+                        <p className="text-sm text-white/70">Add the pre-value title and description</p>
+                    </div>
+                    <FieldGroup className="grid gap-4 md:grid-cols-3">
+                        {Array.from({ length: 5 }).map((_, index) => (
+                            <Field key={`pre-value-title-${index}`}>
+                                <FieldLabel htmlFor={`pre-value-title-${index}`} className="text-white/80">
+                                    Title chunk {index + 1} <span className="text-white">*</span>
+                                </FieldLabel>
+                                <FieldContent>
+                                    <Input
+                                        id={`pre-value-title-${index}`}
+                                        placeholder={`Word ${index + 1}`}
+                                        className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                        {...preValueForm.register(`title.${index}`)}
+                                    />
+                                    <FieldError errors={[preValueForm.formState.errors.title?.[index]]} />
+                                </FieldContent>
+                            </Field>
+                        ))}
+                    </FieldGroup>
+                    <Field>
+                        <FieldLabel htmlFor="pre-value-description" className="text-white/80">
+                            Description <span className="text-white">*</span>
+                        </FieldLabel>
+                        <FieldContent>
+                            <BasicRichEditor name="description" value={descriptionValue ?? ""} />
+                            <FieldError errors={[preValueForm.formState.errors.description]} />
+                        </FieldContent>
+                    </Field>
+                    <FieldGroup className="grid gap-4 md:grid-cols-[160px_minmax(0,1fr)] items-end">
+                        <LinkTypeField
+                            control={preValueForm.control}
+                            resetField={preValueForm.resetField}
+                            onChangeType={handleTypeChange}
+                        />
+                        <LinkTargetField
+                            control={preValueForm.control}
+                            register={preValueForm.register}
+                            linkType={linkType}
+                            linkUrl={linkUrl}
+                            linkUrlError={linkUrlError}
+                            linkFileError={linkFileError}
+                            filePreviewUrl={filePreviewUrl}
+                            onOpenPreview={() => {
+                                if (!filePreviewUrl) {
+                                    return;
+                                }
+                                openPreview({
+                                    type: linkType ?? "image",
+                                    url: filePreviewUrl,
+                                    title: "Pre Value Preview",
+                                });
+                            }}
+                        />
+                    </FieldGroup>
+                    <Button
+                        type="submit"
+                        className="w-full bg-white/90 text-black hover:bg-white"
+                        disabled={getLoading || updateLoading || !preValueForm.formState.isValid}
+                    >
+                        {updateLoading ? "Saving..." : "Save"}
+                    </Button>
+                </form>
+            )}
         </FormProvider>
+    );
+};
+
+const LoadingSkeleton = ({ isRtl }: { isRtl: boolean }) => {
+    return (
+        <div className={cn("space-y-4", isRtl && "home-rtl")}>
+            <CommonLanguageSwitcherCheckbox />
+            <div className="space-y-2">
+                <Skeleton className="h-7 w-40" />
+                <Skeleton className="h-4 w-64" />
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+                {Array.from({ length: 5 }).map((_, index) => (
+                    <Skeleton key={`pre-value-title-skeleton-${index}`} className="h-10 w-full" />
+                ))}
+            </div>
+            <Skeleton className="h-28 w-full" />
+            <Skeleton className="h-10 w-full" />
+        </div>
     );
 };
 
