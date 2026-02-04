@@ -44,6 +44,7 @@ const SeoSectionForm = ({ section, title, subtitle }: SeoSectionFormProps) => {
     const { data, get, update, getLoading, updateLoading } = useSeoStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
+    const currentData = data?.[language] ?? null;
     const form = useForm<SeoSectionFormValues>({
         defaultValues,
         resolver: zodResolver(SeoSectionZodSchema),
@@ -65,7 +66,7 @@ const SeoSectionForm = ({ section, title, subtitle }: SeoSectionFormProps) => {
     }, [get, language, section, form]);
 
     useEffect(() => {
-        const current = data?.[section] ?? null;
+        const current = currentData?.[section] ?? null;
         if (current === null) {
             return;
         }
@@ -75,7 +76,7 @@ const SeoSectionForm = ({ section, title, subtitle }: SeoSectionFormProps) => {
             description: current.description ?? "",
             keywords: current.keywords?.length ? current.keywords.map((value) => ({ value })) : [],
         });
-    }, [data, form, section]);
+    }, [currentData, form, section]);
 
     const toList = (items: { value: string }[]) => items.map((item) => item.value.trim()).filter(Boolean);
 

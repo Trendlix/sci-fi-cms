@@ -115,8 +115,9 @@ const AvatarUploader = ({ control, name, inputId, existingUrl }: AvatarUploaderP
 };
 
 const TestimonialsPage = () => {
-    const { data: testimonialsData, get, update, getLoading, updateLoading } = useHomeTestimonialsStore();
+    const { data, get, update, getLoading, updateLoading } = useHomeTestimonialsStore();
     const language = useHomeLanguageStore((state) => state.language);
+    const testimonialsData = data?.[language];
     const isRtl = language === "ar";
     const testimonialsForm = useForm<TestimonialsFormValues>({
         defaultValues: {

@@ -544,8 +544,9 @@ const SectionFields = ({ index, control, register, setValue, resetField, errors,
 };
 
 const HorizontalSectionsPage = () => {
-    const { data: horizontalData, get, update, getLoading, updateLoading } = useHomeHorizontalStore();
+    const { data, get, update, getLoading, updateLoading } = useHomeHorizontalStore();
     const language = useHomeLanguageStore((state) => state.language);
+    const horizontalData = data?.[language];
     const isRtl = language === "ar";
     const sectionsForm = useForm<HorizontalFormValues>({
         defaultValues: {

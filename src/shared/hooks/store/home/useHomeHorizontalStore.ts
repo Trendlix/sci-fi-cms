@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { toastHelper } from "@/shared/helpers/toast.helper";
 import type { HorizontalSection } from "./home.types";
 import { buildHomeUrl, getAuthHeaders, parseApiResponse } from "./home.api";
-import { useHomeLanguageStore } from "./home-language.store";
+import { useHomeLanguageStore, type HomeLanguage } from "./home-language.store";
 import { useFirebase } from "@/shared/hooks/firebase/useFirebase";
 
 type HorizontalUpdateSection = {
@@ -15,7 +15,7 @@ type HorizontalUpdateSection = {
 };
 
 type HorizontalState = {
-    data: HorizontalSection[] | null;
+    data: Partial<Record<HomeLanguage, HorizontalSection[] | null>>;
     getLoading: boolean;
     updateLoading: boolean;
     get: () => Promise<HorizontalSection[] | null>;
@@ -23,7 +23,7 @@ type HorizontalState = {
 };
 
 export const useHomeHorizontalStore = create<HorizontalState>((set, get) => ({
-    data: null,
+    data: {},
     getLoading: false,
     updateLoading: false,
     get: async () => {
@@ -34,7 +34,12 @@ export const useHomeHorizontalStore = create<HorizontalState>((set, get) => ({
                 cache: "no-store",
             });
             const payload = await parseApiResponse<HorizontalSection[]>(response, { showToast: false });
-            set({ data: payload.data ?? null });
+            set((state) => ({
+                data: {
+                    ...state.data,
+                    [language]: payload.data ?? null,
+                },
+            }));
             return payload.data ?? null;
         } finally {
             set({ getLoading: false });
@@ -44,7 +49,7 @@ export const useHomeHorizontalStore = create<HorizontalState>((set, get) => ({
         const { language } = useHomeLanguageStore.getState();
         set({ updateLoading: true });
         try {
-            const previous = get().data ?? [];
+            const previous = get().data?.[language] ?? [];
             const { uploadFile, deleteFile } = useFirebase.getState();
             const normalized: HorizontalSection[] = [];
 
@@ -118,7 +123,12 @@ export const useHomeHorizontalStore = create<HorizontalState>((set, get) => ({
                 body: JSON.stringify(normalized),
             });
             const result = await parseApiResponse<HorizontalSection[]>(response);
-            set({ data: result.data ?? null });
+            set((state) => ({
+                data: {
+                    ...state.data,
+                    [language]: result.data ?? null,
+                },
+            }));
             toastHelper(result.message || "Horizontal sections updated successfully.", "success");
             return result.data ?? null;
         } catch (error) {

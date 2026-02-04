@@ -2,10 +2,10 @@ import { create } from "zustand";
 import { toastHelper } from "@/shared/helpers/toast.helper";
 import type { SeoPayload, SeoSectionKey } from "./seo.types";
 import { buildSeoUrl, getAuthHeaders, parseApiResponse } from "./seo.api";
-import { useHomeLanguageStore } from "../home/home-language.store";
+import { useHomeLanguageStore, type HomeLanguage } from "../home/home-language.store";
 
 type SeoState = {
-    data: SeoPayload | null;
+    data: Partial<Record<HomeLanguage, SeoPayload | null>>;
     getLoading: boolean;
     updateLoading: boolean;
     get: (section: SeoSectionKey) => Promise<SeoPayload[SeoSectionKey] | null>;
@@ -13,7 +13,7 @@ type SeoState = {
 };
 
 export const useSeoStore = create<SeoState>((set, get) => ({
-    data: null,
+    data: {},
     getLoading: false,
     updateLoading: false,
     get: async (section) => {
@@ -22,10 +22,20 @@ export const useSeoStore = create<SeoState>((set, get) => ({
         try {
             const response = await fetch(buildSeoUrl("/api/v1/seo", language));
             const payload = await parseApiResponse<SeoPayload>(response, { showToast: false });
-            set({ data: payload.data ?? null });
+            set((state) => ({
+                data: {
+                    ...state.data,
+                    [language]: payload.data ?? null,
+                },
+            }));
             return payload.data?.[section] ?? null;
         } catch {
-            set({ data: null });
+            set((state) => ({
+                data: {
+                    ...state.data,
+                    [language]: null,
+                },
+            }));
             return null;
         } finally {
             set({ getLoading: false });
@@ -35,7 +45,7 @@ export const useSeoStore = create<SeoState>((set, get) => ({
         const { language } = useHomeLanguageStore.getState();
         set({ updateLoading: true });
         try {
-            const current = get().data ?? ({} as SeoPayload);
+            const current = get().data?.[language] ?? ({} as SeoPayload);
             const merged = { ...current, [section]: payload } as SeoPayload;
             const headers: HeadersInit = {
                 "Content-Type": "application/json",
@@ -48,7 +58,12 @@ export const useSeoStore = create<SeoState>((set, get) => ({
                 body: JSON.stringify(merged),
             });
             const result = await parseApiResponse<SeoPayload>(response);
-            set({ data: result.data ?? null });
+            set((state) => ({
+                data: {
+                    ...state.data,
+                    [language]: result.data ?? null,
+                },
+            }));
             toastHelper(result.message || "Seo updated successfully.", "success");
             return result.data?.[section] ?? null;
         } finally {

@@ -20,6 +20,7 @@ type AboutFormValues = z.infer<typeof AboutZodValidationSchema>;
 const AboutPage = () => {
     const { data, get, update, getLoading, updateLoading } = useHomeAboutStore();
     const language = useHomeLanguageStore((state) => state.language);
+    const currentData = data?.[language] ?? null;
     const isRtl = language === "ar";
     const aboutForm = useForm<AboutFormValues>({
         defaultValues: {
@@ -34,11 +35,11 @@ const AboutPage = () => {
     }, [get, language, aboutForm]);
 
     useEffect(() => {
-        if (!data) return;
+        if (!currentData) return;
         aboutForm.reset({
-            description: data.description?.length === 5 ? data.description : ["", "", "", "", ""],
+            description: currentData.description?.length === 5 ? currentData.description : ["", "", "", "", ""],
         });
-    }, [data, aboutForm]);
+    }, [currentData, aboutForm]);
 
     const onSubmit = async (formData: AboutFormValues) => {
         await update(formData);

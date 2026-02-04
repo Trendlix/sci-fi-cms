@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { toastHelper } from "@/shared/helpers/toast.helper";
 import type { TestimonialPayload, AvatarPayload } from "./home.types";
 import { buildHomeUrl, getAuthHeaders, parseApiResponse } from "./home.api";
-import { useHomeLanguageStore } from "./home-language.store";
+import { useHomeLanguageStore, type HomeLanguage } from "./home-language.store";
 import { useFirebase } from "@/shared/hooks/firebase/useFirebase";
 
 type TestimonialUpdateInput = {
@@ -14,7 +14,7 @@ type TestimonialUpdateInput = {
 };
 
 type TestimonialsState = {
-    data: TestimonialPayload[] | null;
+    data: Partial<Record<HomeLanguage, TestimonialPayload[] | null>>;
     getLoading: boolean;
     updateLoading: boolean;
     get: () => Promise<TestimonialPayload[] | null>;
@@ -22,7 +22,7 @@ type TestimonialsState = {
 };
 
 export const useHomeTestimonialsStore = create<TestimonialsState>((set, get) => ({
-    data: null,
+    data: {},
     getLoading: false,
     updateLoading: false,
     get: async () => {
@@ -33,7 +33,12 @@ export const useHomeTestimonialsStore = create<TestimonialsState>((set, get) => 
                 cache: "no-store",
             });
             const payload = await parseApiResponse<TestimonialPayload[]>(response, { showToast: false });
-            set({ data: payload.data ?? null });
+            set((state) => ({
+                data: {
+                    ...state.data,
+                    [language]: payload.data ?? null,
+                },
+            }));
             return payload.data ?? null;
         } finally {
             set({ getLoading: false });
@@ -43,7 +48,7 @@ export const useHomeTestimonialsStore = create<TestimonialsState>((set, get) => 
         const { language } = useHomeLanguageStore.getState();
         set({ updateLoading: true });
         try {
-            const previous = get().data ?? [];
+            const previous = get().data?.[language] ?? [];
             const { uploadFile, deleteFile } = useFirebase.getState();
             const normalized: TestimonialPayload[] = [];
 
@@ -83,7 +88,12 @@ export const useHomeTestimonialsStore = create<TestimonialsState>((set, get) => 
                 body: JSON.stringify(normalized),
             });
             const result = await parseApiResponse<TestimonialPayload[]>(response);
-            set({ data: result.data ?? null });
+            set((state) => ({
+                data: {
+                    ...state.data,
+                    [language]: result.data ?? null,
+                },
+            }));
             toastHelper(result.message || "Testimonials updated successfully.", "success");
             return result.data ?? null;
         } finally {

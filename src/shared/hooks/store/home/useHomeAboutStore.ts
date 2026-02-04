@@ -2,10 +2,10 @@ import { create } from "zustand";
 import { toastHelper } from "@/shared/helpers/toast.helper";
 import type { AboutPayload } from "./home.types";
 import { buildHomeUrl, getAuthHeaders, parseApiResponse } from "./home.api";
-import { useHomeLanguageStore } from "./home-language.store";
+import { useHomeLanguageStore, type HomeLanguage } from "./home-language.store";
 
 type AboutState = {
-    data: AboutPayload | null;
+    data: Partial<Record<HomeLanguage, AboutPayload | null>>;
     getLoading: boolean;
     updateLoading: boolean;
     get: () => Promise<AboutPayload | null>;
@@ -13,7 +13,7 @@ type AboutState = {
 };
 
 export const useHomeAboutStore = create<AboutState>((set) => ({
-    data: null,
+    data: {},
     getLoading: false,
     updateLoading: false,
     get: async () => {
@@ -24,7 +24,12 @@ export const useHomeAboutStore = create<AboutState>((set) => ({
                 cache: "no-store",
             });
             const payload = await parseApiResponse<AboutPayload>(response, { showToast: false });
-            set({ data: payload.data ?? null });
+            set((state) => ({
+                data: {
+                    ...state.data,
+                    [language]: payload.data ?? null,
+                },
+            }));
             return payload.data ?? null;
         } finally {
             set({ getLoading: false });
@@ -44,7 +49,12 @@ export const useHomeAboutStore = create<AboutState>((set) => ({
                 body: JSON.stringify(payload),
             });
             const result = await parseApiResponse<AboutPayload>(response);
-            set({ data: result.data ?? null });
+            set((state) => ({
+                data: {
+                    ...state.data,
+                    [language]: result.data ?? null,
+                },
+            }));
             toastHelper(result.message || "About updated successfully.", "success");
             return result.data ?? null;
         } finally {

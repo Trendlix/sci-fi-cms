@@ -22,6 +22,7 @@ type HeroFormValues = z.infer<typeof HeroZodValidationSchema>;
 const HeroPage = () => {
     const { data, get, update, getLoading, updateLoading } = useHomeHeroStore();
     const language = useHomeLanguageStore((state) => state.language);
+    const currentData = data?.[language] ?? null;
     const isRtl = language === "ar";
     const heroForm = useForm<HeroFormValues>({
         defaultValues: {
@@ -38,12 +39,12 @@ const HeroPage = () => {
 
 
     useEffect(() => {
-        if (!data) return;
+        if (!currentData) return;
         heroForm.reset({
-            title: data.title?.length === 6 ? data.title : ["", "", "", "", "", ""],
-            description: data.description ?? "",
+            title: currentData.title?.length === 6 ? currentData.title : ["", "", "", "", "", ""],
+            description: currentData.description ?? "",
         });
-    }, [data, heroForm]);
+    }, [currentData, heroForm]);
 
     const onSubmit = async (formData: HeroFormValues) => {
         await update(formData);

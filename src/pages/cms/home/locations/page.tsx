@@ -50,8 +50,9 @@ const LoadingSkeleton = ({ isRtl }: { isRtl: boolean }) => {
 }
 
 const LocationsPage = () => {
-    const { data: locationsData, get, update, getLoading, updateLoading } = useHomeLocationsStore();
+    const { data, get, update, getLoading, updateLoading } = useHomeLocationsStore();
     const language = useHomeLanguageStore((state) => state.language);
+    const locationsData = data?.[language];
     const isRtl = language === "ar";
     const locationsForm = useForm<LocationsFormValues>({
         defaultValues: {
