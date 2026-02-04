@@ -500,10 +500,9 @@ const BirthdayFileCard = ({
 };
 
 const LandBirthdayService = () => {
-    const { data, get, update, getLoading, updateLoading } = useLandServicesBirthdayStore();
+    const { get, update, getLoading, updateLoading } = useLandServicesBirthdayStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
-    const currentData = data?.[language] ?? null;
     const { open: openPreview } = usePreviewModalStore();
     const form = useForm<LandBirthdayFormValues>({
         defaultValues: getEmptyBirthdayValues(),
@@ -517,51 +516,61 @@ const LandBirthdayService = () => {
     });
 
     useEffect(() => {
-        void get();
-    }, [get, language, form]);
+        let isActive = true;
+        form.reset(getEmptyBirthdayValues());
+        form.clearErrors();
 
-    useEffect(() => {
-        if (currentData === null) {
-            return;
-        }
-        const toFileEntry = (file?: LandFile): BirthdayFileEntry => ({
-            linkType: file?.contentType === "video" ? "video" : file?.contentType === "link" ? "link" : "image",
-            linkUrl: file?.contentType === "link" ? file?.url ?? "" : "",
-            linkFile: undefined,
-            existing: file,
-        });
-        form.reset({
-            price: currentData.price ?? 0,
-            description: currentData.description ?? "",
-            files: currentData.files?.length ? currentData.files.map(toFileEntry) : [defaultBirthdayFile],
-            packages: {
-                bronze: {
-                    oldPrice: currentData.packages.bronze.oldPrice ?? 0,
-                    weekdays: currentData.packages.bronze.price.weekdays ?? 0,
-                    weekends: currentData.packages.bronze.price.weekends ?? 0,
-                    descriptionList: (currentData.packages.bronze.description ?? []).map((value) => ({ value })),
-                    highlightsList: (currentData.packages.bronze.highlights ?? []).map((value) => ({ value })),
+        const load = async () => {
+            const result = await get().catch(() => null);
+            if (!isActive) return;
+            if (!result) {
+                form.reset(getEmptyBirthdayValues());
+                return;
+            }
+            const toFileEntry = (file?: LandFile): BirthdayFileEntry => ({
+                linkType: file?.contentType === "video" ? "video" : file?.contentType === "link" ? "link" : "image",
+                linkUrl: file?.contentType === "link" ? file?.url ?? "" : "",
+                linkFile: undefined,
+                existing: file,
+            });
+            form.reset({
+                price: result.price ?? 0,
+                description: result.description ?? "",
+                files: result.files?.length ? result.files.map(toFileEntry) : [defaultBirthdayFile],
+                packages: {
+                    bronze: {
+                        oldPrice: result.packages.bronze.oldPrice ?? 0,
+                        weekdays: result.packages.bronze.price.weekdays ?? 0,
+                        weekends: result.packages.bronze.price.weekends ?? 0,
+                        descriptionList: (result.packages.bronze.description ?? []).map((value) => ({ value })),
+                        highlightsList: (result.packages.bronze.highlights ?? []).map((value) => ({ value })),
+                    },
+                    gold: {
+                        oldPrice: result.packages.gold.oldPrice ?? 0,
+                        weekdays: result.packages.gold.price.weekdays ?? 0,
+                        weekends: result.packages.gold.price.weekends ?? 0,
+                        descriptionList: (result.packages.gold.description ?? []).map((value) => ({ value })),
+                        highlightsList: (result.packages.gold.highlights ?? []).map((value) => ({ value })),
+                    },
+                    diamond: {
+                        oldPrice: result.packages.diamond.oldPrice ?? 0,
+                        price: result.packages.diamond.price ?? 0,
+                        descriptionList: (result.packages.diamond.description ?? []).map((value) => ({ value })),
+                        highlightsList: (result.packages.diamond.highlights ?? []).map((value) => ({ value })),
+                    },
+                    prince: {
+                        title: result.packages.prince.title ?? "",
+                        description: result.packages.prince.description ?? "",
+                    },
                 },
-                gold: {
-                    oldPrice: currentData.packages.gold.oldPrice ?? 0,
-                    weekdays: currentData.packages.gold.price.weekdays ?? 0,
-                    weekends: currentData.packages.gold.price.weekends ?? 0,
-                    descriptionList: (currentData.packages.gold.description ?? []).map((value) => ({ value })),
-                    highlightsList: (currentData.packages.gold.highlights ?? []).map((value) => ({ value })),
-                },
-                diamond: {
-                    oldPrice: currentData.packages.diamond.oldPrice ?? 0,
-                    price: currentData.packages.diamond.price ?? 0,
-                    descriptionList: (currentData.packages.diamond.description ?? []).map((value) => ({ value })),
-                    highlightsList: (currentData.packages.diamond.highlights ?? []).map((value) => ({ value })),
-                },
-                prince: {
-                    title: currentData.packages.prince.title ?? "",
-                    description: currentData.packages.prince.description ?? "",
-                },
-            },
-        });
-    }, [currentData, form]);
+            });
+        };
+
+        void load();
+        return () => {
+            isActive = false;
+        };
+    }, [get, language, form]);
 
     const filesArray = useFieldArray({
         control: form.control,

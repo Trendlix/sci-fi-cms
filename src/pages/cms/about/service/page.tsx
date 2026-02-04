@@ -11,6 +11,7 @@ import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitch
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAboutStore } from "@/shared/hooks/store/about/useAboutStore";
+import type { AboutPayload } from "@/shared/hooks/store/about/about.types";
 
 const serviceCardSchema = z.object({
     tag: z.string().min(3, "Tag is required").max(500),
@@ -34,12 +35,9 @@ const defaultCard: AboutServiceFormValues["cards"][number] = {
 };
 
 const AboutService = () => {
-    const { data, get, update, getLoading, updateLoading } = useAboutStore();
+    const { get, update, getLoading, updateLoading } = useAboutStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
-    const currentData = data?.[language];
-    const currentSection = currentData?.service;
-    const isReady = !getLoading && currentData !== undefined && currentSection !== undefined;
     const serviceForm = useForm<AboutServiceFormValues>({
         defaultValues: {
             description: "",
@@ -81,33 +79,37 @@ const AboutService = () => {
     });
 
     useEffect(() => {
+        let isActive = true;
         serviceForm.reset({ description: "", cards: [defaultCard] });
         serviceForm.clearErrors();
-        void get("service");
-    }, [get, language, serviceForm]);
 
-    useEffect(() => {
-        if (currentSection === undefined) {
-            return;
-        }
-        if (!currentSection) {
-            serviceForm.reset({ description: "", cards: [defaultCard] });
+        const load = async () => {
+            const result = await get("service") as AboutPayload["service"] | null;
+            if (!isActive) return;
+            if (!result) {
+                serviceForm.reset({ description: "", cards: [defaultCard] });
+                serviceForm.clearErrors();
+                return;
+            }
+            serviceForm.reset({
+                description: result.description ?? "",
+                cards: result.cards?.length
+                    ? result.cards.map((card) => ({
+                        tag: card.tag ?? "",
+                        icon: card.icon ?? "",
+                        title: card.title ?? "",
+                        description: card.description ?? "",
+                    }))
+                    : [defaultCard],
+            });
             serviceForm.clearErrors();
-            return;
-        }
-        serviceForm.reset({
-            description: currentSection.description ?? "",
-            cards: currentSection.cards?.length
-                ? currentSection.cards.map((card) => ({
-                    tag: card.tag ?? "",
-                    icon: card.icon ?? "",
-                    title: card.title ?? "",
-                    description: card.description ?? "",
-                }))
-                : [defaultCard],
-        });
-        serviceForm.clearErrors();
-    }, [currentSection, serviceForm]);
+        };
+
+        void load();
+        return () => {
+            isActive = false;
+        };
+    }, [get, language, serviceForm]);
 
     const onSubmit = async (formData: AboutServiceFormValues) => {
         await update("service", formData);
@@ -115,7 +117,7 @@ const AboutService = () => {
 
     return (
         <FormProvider {...serviceForm}>
-            {getLoading || !isReady ? (
+            {getLoading ? (
                 <LoadingSkeleton isRtl={isRtl} />
             ) : (
                 <form onSubmit={serviceForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>

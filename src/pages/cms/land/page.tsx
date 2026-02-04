@@ -59,10 +59,9 @@ export const LandHeroZodSchema = z.object({
 type LandHeroFormValues = z.infer<typeof LandHeroZodSchema>;
 
 const LandHero = () => {
-    const { data, get, update, getLoading, updateLoading } = useLandHeroStore();
+    const { get, update, getLoading, updateLoading } = useLandHeroStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
-    const currentData = data?.[language] ?? null;
     const openPreview = usePreviewModalStore((state) => state.open);
     const heroForm = useForm<LandHeroFormValues>({
         defaultValues: {
@@ -95,24 +94,52 @@ const LandHero = () => {
     }, [objectUrl]);
 
     useEffect(() => {
-        void get();
-    }, [get, language, heroForm]);
-
-    useEffect(() => {
-        if (currentData === null) {
-            return;
-        }
+        let isActive = true;
         heroForm.reset({
-            title: currentData.title?.length === 6 ? currentData.title : ["", "", "", "", "", ""],
-            description: currentData.description ?? "",
+            title: ["", "", "", "", "", ""],
+            description: "",
             file: {
-                linkType: currentData.file?.contentType === "video" ? "video" : currentData.file?.contentType === "link" ? "link" : "image",
-                linkUrl: currentData.file?.url ?? "",
+                linkType: "image",
+                linkUrl: "",
                 fileFile: undefined,
-                existing: currentData.file,
+                existing: undefined,
             },
         });
-    }, [currentData, heroForm]);
+        heroForm.clearErrors();
+
+        const load = async () => {
+            const result = await get().catch(() => null);
+            if (!isActive) return;
+            if (!result) {
+                heroForm.reset({
+                    title: ["", "", "", "", "", ""],
+                    description: "",
+                    file: {
+                        linkType: "image",
+                        linkUrl: "",
+                        fileFile: undefined,
+                        existing: undefined,
+                    },
+                });
+                return;
+            }
+            heroForm.reset({
+                title: result.title?.length === 6 ? result.title : ["", "", "", "", "", ""],
+                description: result.description ?? "",
+                file: {
+                    linkType: result.file?.contentType === "video" ? "video" : result.file?.contentType === "link" ? "link" : "image",
+                    linkUrl: result.file?.url ?? "",
+                    fileFile: undefined,
+                    existing: result.file,
+                },
+            });
+        };
+
+        void load();
+        return () => {
+            isActive = false;
+        };
+    }, [get, language, heroForm]);
 
     const onSubmit = async (formData: LandHeroFormValues) => {
         await update(formData);

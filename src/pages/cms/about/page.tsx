@@ -11,6 +11,7 @@ import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitch
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAboutStore } from "@/shared/hooks/store/about/useAboutStore";
+import type { AboutPayload } from "@/shared/hooks/store/about/about.types";
 
 export const AboutHeroZodSchema = z.object({
     title: z.array(z.string().min(1, "Title is required")).length(6),
@@ -20,12 +21,9 @@ export const AboutHeroZodSchema = z.object({
 type AboutHeroFormValues = z.infer<typeof AboutHeroZodSchema>;
 
 const AboutHero = () => {
-    const { data, get, update, getLoading, updateLoading } = useAboutStore();
+    const { get, update, getLoading, updateLoading } = useAboutStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
-    const currentData = data?.[language];
-    const currentSection = currentData?.hero;
-    const isReady = !getLoading && currentData !== undefined && currentSection !== undefined;
     const heroForm = useForm<AboutHeroFormValues>({
         defaultValues: {
             title: ["", "", "", "", "", ""],
@@ -37,30 +35,34 @@ const AboutHero = () => {
     const descriptionValue = useWatch({ control: heroForm.control, name: "description" });
 
     useEffect(() => {
+        let isActive = true;
         heroForm.reset({
             title: ["", "", "", "", "", ""],
             description: "",
         });
         heroForm.clearErrors();
-        void get("hero");
-    }, [get, language, heroForm]);
 
-    useEffect(() => {
-        if (currentSection === undefined) {
-            return;
-        }
-        if (!currentSection) {
+        const load = async () => {
+            const result = await get("hero") as AboutPayload["hero"] | null;
+            if (!isActive) return;
+            if (!result) {
+                heroForm.reset({
+                    title: ["", "", "", "", "", ""],
+                    description: "",
+                });
+                return;
+            }
             heroForm.reset({
-                title: ["", "", "", "", "", ""],
-                description: "",
+                title: result.title?.length === 6 ? result.title : ["", "", "", "", "", ""],
+                description: result.description ?? "",
             });
-            return;
-        }
-        heroForm.reset({
-            title: currentSection.title?.length === 6 ? currentSection.title : ["", "", "", "", "", ""],
-            description: currentSection.description ?? "",
-        });
-    }, [currentSection, heroForm]);
+        };
+
+        void load();
+        return () => {
+            isActive = false;
+        };
+    }, [get, language, heroForm]);
 
     const onSubmit = async (formData: AboutHeroFormValues) => {
         await update("hero", formData);
@@ -68,7 +70,7 @@ const AboutHero = () => {
 
     return (
         <FormProvider {...heroForm}>
-            {getLoading || !isReady ? (
+            {getLoading ? (
                 <LoadingSkeleton isRtl={isRtl} />
             ) : (
                 <form onSubmit={heroForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>

@@ -6,12 +6,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, FormProvider, useFieldArray, useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLandDiscoverFloorsStore } from "@/shared/hooks/store/land/useLandDiscoverFloorsStore";
 import { Upload } from "lucide-react";
+import type { LandDiscoverFloorsPayload } from "@/shared/hooks/store/land/land.types";
 
 const fileSchema = z.any().refine((file) => !file || file instanceof File, {
     message: "Icon must be a file",
@@ -110,10 +111,10 @@ const IconUploader = ({ control, name, inputId, existingUrl }: IconUploaderProps
 };
 
 const DiscoverFloors = () => {
-    const { data, get, update, getLoading, updateLoading } = useLandDiscoverFloorsStore();
+    const { get, update, getLoading, updateLoading } = useLandDiscoverFloorsStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
-    const currentData = data?.[language] ?? null;
+    const [currentData, setCurrentData] = useState<LandDiscoverFloorsPayload | null>(null);
     const discoverForm = useForm<DiscoverFloorsFormValues>({
         defaultValues: {
             description: "",
@@ -129,25 +130,42 @@ const DiscoverFloors = () => {
     });
 
     useEffect(() => {
-        void get();
-    }, [get, language, discoverForm]);
-
-    useEffect(() => {
-        if (currentData === null) {
-            return;
-        }
+        let isActive = true;
         discoverForm.reset({
-            description: currentData.description ?? "",
-            cards: currentData.cards?.length
-                ? currentData.cards.map((card) => ({
-                    title: card.title ?? "",
-                    description: card.description ?? "",
-                    link: card.link ?? "",
-                    iconFile: undefined,
-                }))
-                : Array.from({ length: 6 }).map(() => ({ ...defaultCard })),
+            description: "",
+            cards: Array.from({ length: 6 }).map(() => ({ ...defaultCard })),
         });
-    }, [currentData, discoverForm]);
+        discoverForm.clearErrors();
+
+        const load = async () => {
+            const result = await get().catch(() => null);
+            if (!isActive) return;
+            setCurrentData(result ?? null);
+            if (!result) {
+                discoverForm.reset({
+                    description: "",
+                    cards: Array.from({ length: 6 }).map(() => ({ ...defaultCard })),
+                });
+                return;
+            }
+            discoverForm.reset({
+                description: result.description ?? "",
+                cards: result.cards?.length
+                    ? result.cards.map((card) => ({
+                        title: card.title ?? "",
+                        description: card.description ?? "",
+                        link: card.link ?? "",
+                        iconFile: undefined,
+                    }))
+                    : Array.from({ length: 6 }).map(() => ({ ...defaultCard })),
+            });
+        };
+
+        void load();
+        return () => {
+            isActive = false;
+        };
+    }, [get, language, discoverForm]);
 
     const onSubmit = async (formData: DiscoverFloorsFormValues) => {
         await update(formData);

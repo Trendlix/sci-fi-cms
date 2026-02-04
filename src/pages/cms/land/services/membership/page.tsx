@@ -460,10 +460,9 @@ const MembershipFileCard = ({
 };
 
 const LandMembershipService = () => {
-    const { data, get, update, getLoading, updateLoading } = useLandServicesMembershipStore();
+    const { get, update, getLoading, updateLoading } = useLandServicesMembershipStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
-    const currentData = data?.[language] ?? null;
     const { open: openPreview } = usePreviewModalStore();
     const form = useForm<LandMembershipFormValues>({
         defaultValues: getEmptyMembershipValues(),
@@ -474,52 +473,62 @@ const LandMembershipService = () => {
     const packagesDescriptionValue = useWatch({ control: form.control, name: "packages.description" });
 
     useEffect(() => {
-        void get();
-    }, [get, language, form]);
+        let isActive = true;
+        form.reset(getEmptyMembershipValues());
+        form.clearErrors();
 
-    useEffect(() => {
-        if (currentData === null) {
-            return;
-        }
-        const toFileEntry = (file?: LandFile): MembershipFileEntry => ({
-            linkType: file?.contentType === "video" ? "video" : file?.contentType === "link" ? "link" : "image",
-            linkUrl: file?.contentType === "link" ? file?.url ?? "" : "",
-            linkFile: undefined,
-            existing: file,
-        });
-        const normalizeCard = (card: typeof currentData.packages.years[3]) => ({
-            icon: card.icon ?? "",
-            title: card.title ?? "",
-            perMonthIcon: card.hours.perMonth.icon ?? "",
-            perMonthHighlightNo: card.hours.perMonth.highlight.no ?? 0,
-            perMonthHighlightLine: card.hours.perMonth.highlight.line ?? "",
-            perWeekIcon: card.hours.perWeek.icon ?? "",
-            perWeekHighlightNo: card.hours.perWeek.highlight.no ?? 0,
-            perWeekHighlightLine: card.hours.perWeek.highlight.line ?? "",
-            perSessionIcon: card.hours.perSession.icon ?? "",
-            perSessionHighlightNo: card.hours.perSession.highlight.no ?? 0,
-            perSessionHighlightLine: card.hours.perSession.highlight.line ?? "",
-            totalTimeIcon: card.hours.totalTime.icon ?? "",
-            totalTimeLine: card.hours.totalTime.line ?? "",
-            oldPricePerMonth: card.oldPricePerMonth ?? 0,
-            pricePerMonth: card.pricePerMonth ?? 0,
-            highlightsList: (card.highlights ?? []).join("\n"),
-            isPopular: Boolean(card.isPopular),
-        });
+        const load = async () => {
+            const result = await get().catch(() => null);
+            if (!isActive) return;
+            if (!result) {
+                form.reset(getEmptyMembershipValues());
+                return;
+            }
+            const toFileEntry = (file?: LandFile): MembershipFileEntry => ({
+                linkType: file?.contentType === "video" ? "video" : file?.contentType === "link" ? "link" : "image",
+                linkUrl: file?.contentType === "link" ? file?.url ?? "" : "",
+                linkFile: undefined,
+                existing: file,
+            });
+            const normalizeCard = (card: typeof result.packages.years[3]) => ({
+                icon: card.icon ?? "",
+                title: card.title ?? "",
+                perMonthIcon: card.hours.perMonth.icon ?? "",
+                perMonthHighlightNo: card.hours.perMonth.highlight.no ?? 0,
+                perMonthHighlightLine: card.hours.perMonth.highlight.line ?? "",
+                perWeekIcon: card.hours.perWeek.icon ?? "",
+                perWeekHighlightNo: card.hours.perWeek.highlight.no ?? 0,
+                perWeekHighlightLine: card.hours.perWeek.highlight.line ?? "",
+                perSessionIcon: card.hours.perSession.icon ?? "",
+                perSessionHighlightNo: card.hours.perSession.highlight.no ?? 0,
+                perSessionHighlightLine: card.hours.perSession.highlight.line ?? "",
+                totalTimeIcon: card.hours.totalTime.icon ?? "",
+                totalTimeLine: card.hours.totalTime.line ?? "",
+                oldPricePerMonth: card.oldPricePerMonth ?? 0,
+                pricePerMonth: card.pricePerMonth ?? 0,
+                highlightsList: (card.highlights ?? []).join("\n"),
+                isPopular: Boolean(card.isPopular),
+            });
 
-        form.reset({
-            price: currentData.price ?? 0,
-            description: currentData.description ?? "",
-            files: currentData.files?.length ? currentData.files.map(toFileEntry) : [defaultMembershipFile],
-            packages: {
-                description: currentData.packages.description ?? "",
-                years: {
-                    "3": normalizeCard(currentData.packages.years[3]),
-                    "6": normalizeCard(currentData.packages.years[6]),
+            form.reset({
+                price: result.price ?? 0,
+                description: result.description ?? "",
+                files: result.files?.length ? result.files.map(toFileEntry) : [defaultMembershipFile],
+                packages: {
+                    description: result.packages.description ?? "",
+                    years: {
+                        "3": normalizeCard(result.packages.years[3]),
+                        "6": normalizeCard(result.packages.years[6]),
+                    },
                 },
-            },
-        });
-    }, [currentData, form]);
+            });
+        };
+
+        void load();
+        return () => {
+            isActive = false;
+        };
+    }, [get, language, form]);
 
     const filesArray = useFieldArray({
         control: form.control,

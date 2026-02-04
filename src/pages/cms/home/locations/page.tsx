@@ -50,9 +50,8 @@ const LoadingSkeleton = ({ isRtl }: { isRtl: boolean }) => {
 }
 
 const LocationsPage = () => {
-    const { data, get, update, getLoading, updateLoading } = useHomeLocationsStore();
+    const { get, update, getLoading, updateLoading } = useHomeLocationsStore();
     const language = useHomeLanguageStore((state) => state.language);
-    const locationsData = data?.[language];
     const isRtl = language === "ar";
     const locationsForm = useForm<LocationsFormValues>({
         defaultValues: {
@@ -68,25 +67,31 @@ const LocationsPage = () => {
     });
 
     useEffect(() => {
-        void get();
-    }, [get, language, locationsForm]);
+        let isActive = true;
+        locationsForm.reset({ locations: defaultLocations });
+        locationsForm.clearErrors();
 
-    useEffect(() => {
-        if (locationsData === null || locationsData === undefined) {
-            return;
-        }
-        if (locationsData.length === 0) {
-            locationsForm.reset({ locations: defaultLocations });
-        } else {
+        const load = async () => {
+            const result = await get();
+            if (!isActive) return;
+            if (!result || result.length === 0) {
+                locationsForm.reset({ locations: defaultLocations });
+                return;
+            }
             locationsForm.reset({
-                locations: locationsData.map((item) => ({
+                locations: result.map((item) => ({
                     title: item.title ?? "",
                     address: item.address ?? "",
                     mapUrl: item.mapUrl ?? "",
                 })),
             });
-        }
-    }, [locationsData, locationsForm]);
+        };
+
+        void load();
+        return () => {
+            isActive = false;
+        };
+    }, [get, language, locationsForm]);
 
     const onSubmit = async (formData: LocationsFormValues) => {
         await update(formData.locations);

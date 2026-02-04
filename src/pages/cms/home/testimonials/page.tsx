@@ -7,11 +7,12 @@ import { Controller, FormProvider, useFieldArray, useForm, useWatch } from "reac
 import * as z from "zod";
 import { cn } from "@/lib/utils";
 import { Upload } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeTestimonialsStore } from "@/shared/hooks/store/home/useHomeTestimonialsStore";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { TestimonialPayload } from "@/shared/hooks/store/home/home.types";
 
 const fileSchema = z.any().refine((file) => !file || file instanceof File, {
     message: "Avatar must be a file",
@@ -115,10 +116,10 @@ const AvatarUploader = ({ control, name, inputId, existingUrl }: AvatarUploaderP
 };
 
 const TestimonialsPage = () => {
-    const { data, get, update, getLoading, updateLoading } = useHomeTestimonialsStore();
+    const { get, update, getLoading, updateLoading } = useHomeTestimonialsStore();
     const language = useHomeLanguageStore((state) => state.language);
-    const testimonialsData = data?.[language];
     const isRtl = language === "ar";
+    const [currentData, setCurrentData] = useState<TestimonialPayload[] | null>(null);
     const testimonialsForm = useForm<TestimonialsFormValues>({
         defaultValues: {
             testimonials: defaultTestimonials,
@@ -133,18 +134,20 @@ const TestimonialsPage = () => {
     })
 
     useEffect(() => {
-        void get();
-    }, [get, language, testimonialsForm]);
+        let isActive = true;
+        testimonialsForm.reset({ testimonials: defaultTestimonials });
+        testimonialsForm.clearErrors();
 
-    useEffect(() => {
-        if (testimonialsData === null || testimonialsData === undefined) {
-            return;
-        }
-        if (testimonialsData.length === 0) {
-            testimonialsForm.reset({ testimonials: defaultTestimonials });
-        } else {
+        const load = async () => {
+            const result = await get();
+            if (!isActive) return;
+            setCurrentData(result ?? null);
+            if (!result || result.length === 0) {
+                testimonialsForm.reset({ testimonials: defaultTestimonials });
+                return;
+            }
             testimonialsForm.reset({
-                testimonials: testimonialsData.map((item) => ({
+                testimonials: result.map((item) => ({
                     name: item.name ?? "",
                     title: item.title ?? "",
                     message: item.message ?? "",
@@ -152,8 +155,13 @@ const TestimonialsPage = () => {
                     avatarFile: undefined,
                 })),
             });
-        }
-    }, [testimonialsData, testimonialsForm]);
+        };
+
+        void load();
+        return () => {
+            isActive = false;
+        };
+    }, [get, language, testimonialsForm]);
 
     const onSubmit = async (formData: TestimonialsFormValues) => {
         const payload = formData.testimonials.map((item) => ({
@@ -201,7 +209,7 @@ const TestimonialsPage = () => {
                                                 control={testimonialsForm.control}
                                                 name={`testimonials.${index}.avatarFile`}
                                                 inputId={`avatar-${index}`}
-                                                existingUrl={testimonialsData?.[index]?.avatar?.url}
+                                                existingUrl={currentData?.[index]?.avatar?.url}
                                             />
                                             <FieldError errors={[testimonialsForm.formState.errors.testimonials?.[index]?.avatarFile]} />
                                         </FieldContent>

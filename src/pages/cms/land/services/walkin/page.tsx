@@ -7,12 +7,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, FormProvider, useFieldArray, useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLandServicesWalkinStore } from "@/shared/hooks/store/land/useLandServicesWalkinStore";
 import { Upload } from "lucide-react";
+import type { LandWalkinPayload } from "@/shared/hooks/store/land/land.types";
 
 const fileSchema = z.any().refine((file) => !file || file instanceof File, {
     message: "File must be a file",
@@ -164,10 +165,10 @@ const toList = (value: string) =>
         .filter(Boolean);
 
 const LandWalkinService = () => {
-    const { data, get, update, getLoading, updateLoading } = useLandServicesWalkinStore();
+    const { get, update, getLoading, updateLoading } = useLandServicesWalkinStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
-    const currentData = data?.[language] ?? null;
+    const [currentData, setCurrentData] = useState<LandWalkinPayload | null>(null);
     const form = useForm<LandWalkinFormValues>({
         defaultValues: getEmptyWalkinValues(),
         resolver: zodResolver(LandWalkinZodSchema),
@@ -195,46 +196,57 @@ const LandWalkinService = () => {
     });
 
     useEffect(() => {
-        void get();
-    }, [get, language, form]);
+        let isActive = true;
+        form.reset(getEmptyWalkinValues());
+        form.clearErrors();
 
-    useEffect(() => {
-        if (currentData === null) {
-            return;
-        }
-        form.reset({
-            firstCards: currentData.firstCards.map((card) => ({
-                icon: card.icon ?? "",
-                title: card.title ?? "",
-                description: card.description ?? "",
-            })),
-            lastCards: currentData.lastCards.map((card) => ({
-                icon: card.icon ?? "",
-                title: card.title ?? "",
-                highlightsList: (card.highlights ?? []).join("\n"),
-            })),
-            joinerFloor: {
-                description: currentData.joinerFloor.description?.length === 2
-                    ? currentData.joinerFloor.description
-                    : ["", ""],
-                files: currentData.joinerFloor.files.map((file) => ({
-                    tag: file.tag ?? "",
-                    fileFile: undefined,
-                    existing: file,
+        const load = async () => {
+            const result = await get().catch(() => null);
+            if (!isActive) return;
+            setCurrentData(result ?? null);
+            if (!result) {
+                form.reset(getEmptyWalkinValues());
+                return;
+            }
+            form.reset({
+                firstCards: result.firstCards.map((card) => ({
+                    icon: card.icon ?? "",
+                    title: card.title ?? "",
+                    description: card.description ?? "",
                 })),
-            },
-            geniusFloor: {
-                description: currentData.geniusFloor.description?.length === 2
-                    ? currentData.geniusFloor.description
-                    : ["", ""],
-                files: currentData.geniusFloor.files.map((file) => ({
-                    tag: file.tag ?? "",
-                    fileFile: undefined,
-                    existing: file,
+                lastCards: result.lastCards.map((card) => ({
+                    icon: card.icon ?? "",
+                    title: card.title ?? "",
+                    highlightsList: (card.highlights ?? []).join("\n"),
                 })),
-            },
-        });
-    }, [currentData, form]);
+                joinerFloor: {
+                    description: result.joinerFloor.description?.length === 2
+                        ? result.joinerFloor.description
+                        : ["", ""],
+                    files: result.joinerFloor.files.map((file) => ({
+                        tag: file.tag ?? "",
+                        fileFile: undefined,
+                        existing: file,
+                    })),
+                },
+                geniusFloor: {
+                    description: result.geniusFloor.description?.length === 2
+                        ? result.geniusFloor.description
+                        : ["", ""],
+                    files: result.geniusFloor.files.map((file) => ({
+                        tag: file.tag ?? "",
+                        fileFile: undefined,
+                        existing: file,
+                    })),
+                },
+            });
+        };
+
+        void load();
+        return () => {
+            isActive = false;
+        };
+    }, [get, language, form]);
 
     const onSubmit = async (values: LandWalkinFormValues) => {
         await update({

@@ -21,6 +21,7 @@ import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.st
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAboutStore } from "@/shared/hooks/store/about/useAboutStore";
 import { usePreviewModalStore } from "@/shared/hooks/store/ui/usePreviewModalStore";
+import type { AboutPayload } from "@/shared/hooks/store/about/about.types";
 
 export const AboutPreValueZodSchema = z.object({
     title: z.array(z.string().min(1, "Title is required")).length(5),
@@ -241,13 +242,10 @@ const LinkTargetField = ({
 );
 
 const AboutPreValue = () => {
-    const { data, get, update, getLoading, updateLoading } = useAboutStore();
+    const { get, update, getLoading, updateLoading } = useAboutStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
     const openPreview = usePreviewModalStore((state) => state.open);
-    const currentData = data?.[language];
-    const currentSection = currentData?.preValue;
-    const isReady = !getLoading && currentData !== undefined && currentSection !== undefined;
     const preValueForm = useForm<AboutPreValueFormValues>({
         defaultValues: {
             title: ["", "", "", "", ""],
@@ -261,6 +259,7 @@ const AboutPreValue = () => {
     });
 
     useEffect(() => {
+        let isActive = true;
         preValueForm.reset({
             title: ["", "", "", "", ""],
             description: "",
@@ -269,32 +268,35 @@ const AboutPreValue = () => {
             linkFile: undefined,
         });
         preValueForm.clearErrors();
-        void get("preValue");
-    }, [get, language, preValueForm]);
 
-    useEffect(() => {
-        if (currentSection === undefined) {
-            return;
-        }
-        if (!currentSection) {
+        const load = async () => {
+            const result = await get("preValue") as AboutPayload["preValue"] | null;
+            if (!isActive) return;
+            if (!result) {
+                preValueForm.reset({
+                    title: ["", "", "", "", ""],
+                    description: "",
+                    linkType: "image",
+                    linkUrl: "",
+                    linkFile: undefined,
+                });
+                return;
+            }
+            const previousType = resolveLinkType(result.file?.contentType, result.file?.url);
             preValueForm.reset({
-                title: ["", "", "", "", ""],
-                description: "",
-                linkType: "image",
-                linkUrl: "",
+                title: result.title?.length === 5 ? result.title : ["", "", "", "", ""],
+                description: result.description ?? "",
+                linkType: previousType,
+                linkUrl: result.file?.url ?? "",
                 linkFile: undefined,
             });
-            return;
-        }
-        const previousType = resolveLinkType(currentSection.file?.contentType, currentSection.file?.url);
-        preValueForm.reset({
-            title: currentSection.title?.length === 5 ? currentSection.title : ["", "", "", "", ""],
-            description: currentSection.description ?? "",
-            linkType: previousType,
-            linkUrl: currentSection.file?.url ?? "",
-            linkFile: undefined,
-        });
-    }, [currentSection, preValueForm]);
+        };
+
+        void load();
+        return () => {
+            isActive = false;
+        };
+    }, [get, language, preValueForm]);
 
     const onSubmit = async (formData: AboutPreValueFormValues) => {
         await update("preValue", formData);
@@ -356,7 +358,7 @@ const AboutPreValue = () => {
 
     return (
         <FormProvider {...preValueForm}>
-            {getLoading || !isReady ? (
+            {getLoading ? (
                 <LoadingSkeleton isRtl={isRtl} />
             ) : (
                 <form onSubmit={preValueForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>

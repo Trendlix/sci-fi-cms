@@ -6,12 +6,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, FormProvider, useFieldArray, useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAboutStore } from "@/shared/hooks/store/about/useAboutStore";
 import { Upload } from "lucide-react";
+import type { AboutPayload } from "@/shared/hooks/store/about/about.types";
 
 const fileSchema = z.any().refine((file) => !file || file instanceof File, {
     message: "Icon must be a file",
@@ -108,12 +109,10 @@ const IconUploader = ({ control, name, inputId, existingUrl }: IconUploaderProps
 };
 
 const AboutAbout = () => {
-    const { data, get, update, getLoading, updateLoading } = useAboutStore();
+    const { get, update, getLoading, updateLoading } = useAboutStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
-    const currentData = data?.[language];
-    const currentSection = currentData?.about;
-    const isReady = !getLoading && currentData !== undefined && currentSection !== undefined;
+    const [currentSection, setCurrentSection] = useState<AboutPayload["about"] | null>(null);
     const aboutForm = useForm<AboutSectionFormValues>({
         defaultValues: {
             description: "",
@@ -131,30 +130,35 @@ const AboutAbout = () => {
     });
 
     useEffect(() => {
+        let isActive = true;
         aboutForm.reset({ description: "", cards: [defaultCard] });
         aboutForm.clearErrors();
-        void get("about");
-    }, [get, language, aboutForm]);
 
-    useEffect(() => {
-        if (currentSection === undefined) {
-            return;
-        }
-        if (!currentSection) {
-            aboutForm.reset({ description: "", cards: [defaultCard] });
-            return;
-        }
-        aboutForm.reset({
-            description: currentSection.description ?? "",
-            cards: currentSection.cards?.length
-                ? currentSection.cards.map((card) => ({
-                    iconFile: undefined,
-                    title: card.title ?? "",
-                    description: card.description ?? "",
-                }))
-                : [defaultCard],
-        });
-    }, [currentSection, aboutForm]);
+        const load = async () => {
+            const result = await get("about") as AboutPayload["about"] | null;
+            if (!isActive) return;
+            setCurrentSection(result ?? null);
+            if (!result) {
+                aboutForm.reset({ description: "", cards: [defaultCard] });
+                return;
+            }
+            aboutForm.reset({
+                description: result.description ?? "",
+                cards: result.cards?.length
+                    ? result.cards.map((card) => ({
+                        iconFile: undefined,
+                        title: card.title ?? "",
+                        description: card.description ?? "",
+                    }))
+                    : [defaultCard],
+            });
+        };
+
+        void load();
+        return () => {
+            isActive = false;
+        };
+    }, [get, language, aboutForm]);
 
     const onSubmit = async (formData: AboutSectionFormValues) => {
         await update("about", formData);
@@ -162,7 +166,7 @@ const AboutAbout = () => {
 
     return (
         <FormProvider {...aboutForm}>
-            {getLoading || !isReady ? (
+            {getLoading ? (
                 <LoadingSkeleton isRtl={isRtl} />
             ) : (
                 <form onSubmit={aboutForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>

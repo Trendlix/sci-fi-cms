@@ -362,10 +362,9 @@ const FloorFields = ({
 };
 
 const LandFloors = () => {
-    const { data, get, update, getLoading, updateLoading } = useLandFloorsStore();
+    const { get, update, getLoading, updateLoading } = useLandFloorsStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
-    const currentData = data?.[language] ?? null;
     const floorsForm = useForm<FloorsFormValues>({
         defaultValues: {
             floors: [defaultFloor],
@@ -380,18 +379,19 @@ const LandFloors = () => {
     });
 
     useEffect(() => {
-        void get();
-    }, [get, language, floorsForm]);
+        let isActive = true;
+        floorsForm.reset({ floors: [defaultFloor] });
+        floorsForm.clearErrors();
 
-    useEffect(() => {
-        if (currentData === null) {
-            return;
-        }
-        if (!currentData.length) {
-            floorsForm.reset({ floors: [defaultFloor] });
-        } else {
+        const load = async () => {
+            const result = await get().catch(() => null);
+            if (!isActive) return;
+            if (!result || !result.length) {
+                floorsForm.reset({ floors: [defaultFloor] });
+                return;
+            }
             floorsForm.reset({
-                floors: currentData.map((floor) => ({
+                floors: result.map((floor) => ({
                     title: floor.title ?? "",
                     description: floor.description ?? "",
                     linkType: floor.file?.contentType === "video" ? "video" : floor.file?.contentType === "link" ? "link" : "image",
@@ -400,8 +400,13 @@ const LandFloors = () => {
                     existing: floor.file,
                 })),
             });
-        }
-    }, [currentData, floorsForm]);
+        };
+
+        void load();
+        return () => {
+            isActive = false;
+        };
+    }, [get, language, floorsForm]);
 
     const onSubmit = async (formData: FloorsFormValues) => {
         await update(formData.floors);

@@ -18,9 +18,8 @@ export const AboutZodValidationSchema = z.object({
 type AboutFormValues = z.infer<typeof AboutZodValidationSchema>;
 
 const AboutPage = () => {
-    const { data, get, update, getLoading, updateLoading } = useHomeAboutStore();
+    const { get, update, getLoading, updateLoading } = useHomeAboutStore();
     const language = useHomeLanguageStore((state) => state.language);
-    const currentData = data?.[language] ?? null;
     const isRtl = language === "ar";
     const aboutForm = useForm<AboutFormValues>({
         defaultValues: {
@@ -31,15 +30,31 @@ const AboutPage = () => {
     })
 
     useEffect(() => {
-        void get();
-    }, [get, language, aboutForm]);
-
-    useEffect(() => {
-        if (!currentData) return;
+        let isActive = true;
         aboutForm.reset({
-            description: currentData.description?.length === 5 ? currentData.description : ["", "", "", "", ""],
+            description: ["", "", "", "", ""],
         });
-    }, [currentData, aboutForm]);
+        aboutForm.clearErrors();
+
+        const load = async () => {
+            const result = await get();
+            if (!isActive) return;
+            if (!result) {
+                aboutForm.reset({
+                    description: ["", "", "", "", ""],
+                });
+                return;
+            }
+            aboutForm.reset({
+                description: result.description?.length === 5 ? result.description : ["", "", "", "", ""],
+            });
+        };
+
+        void load();
+        return () => {
+            isActive = false;
+        };
+    }, [get, language, aboutForm]);
 
     const onSubmit = async (formData: AboutFormValues) => {
         await update(formData);

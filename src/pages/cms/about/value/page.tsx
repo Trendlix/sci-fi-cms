@@ -11,6 +11,7 @@ import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitch
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAboutStore } from "@/shared/hooks/store/about/useAboutStore";
+import type { AboutPayload } from "@/shared/hooks/store/about/about.types";
 
 const valueCardSchema = z.object({
     icon: z.string().min(1, "Icon is required"),
@@ -32,12 +33,9 @@ const defaultCard: AboutValueFormValues["cards"][number] = {
 };
 
 const AboutValue = () => {
-    const { data, get, update, getLoading, updateLoading } = useAboutStore();
+    const { get, update, getLoading, updateLoading } = useAboutStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
-    const currentData = data?.[language];
-    const currentSection = currentData?.value;
-    const isReady = !getLoading && currentData !== undefined && currentSection !== undefined;
     const valueForm = useForm<AboutValueFormValues>({
         defaultValues: {
             description: "",
@@ -55,30 +53,34 @@ const AboutValue = () => {
     });
 
     useEffect(() => {
+        let isActive = true;
         valueForm.reset({ description: "", cards: [defaultCard] });
         valueForm.clearErrors();
-        void get("value");
-    }, [get, language, valueForm]);
 
-    useEffect(() => {
-        if (currentSection === undefined) {
-            return;
-        }
-        if (!currentSection) {
-            valueForm.reset({ description: "", cards: [defaultCard] });
-            return;
-        }
-        valueForm.reset({
-            description: currentSection.description ?? "",
-            cards: currentSection.cards?.length
-                ? currentSection.cards.map((card) => ({
-                    icon: card.icon ?? "",
-                    title: card.title ?? "",
-                    description: card.description ?? "",
-                }))
-                : [defaultCard],
-        });
-    }, [currentSection, valueForm]);
+        const load = async () => {
+            const result = await get("value") as AboutPayload["value"] | null;
+            if (!isActive) return;
+            if (!result) {
+                valueForm.reset({ description: "", cards: [defaultCard] });
+                return;
+            }
+            valueForm.reset({
+                description: result.description ?? "",
+                cards: result.cards?.length
+                    ? result.cards.map((card) => ({
+                        icon: card.icon ?? "",
+                        title: card.title ?? "",
+                        description: card.description ?? "",
+                    }))
+                    : [defaultCard],
+            });
+        };
+
+        void load();
+        return () => {
+            isActive = false;
+        };
+    }, [get, language, valueForm]);
 
     const onSubmit = async (formData: AboutValueFormValues) => {
         await update("value", formData);
@@ -86,7 +88,7 @@ const AboutValue = () => {
 
     return (
         <FormProvider {...valueForm}>
-            {getLoading || !isReady ? (
+            {getLoading ? (
                 <LoadingSkeleton isRtl={isRtl} />
             ) : (
                 <form onSubmit={valueForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>

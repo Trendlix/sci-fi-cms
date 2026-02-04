@@ -43,10 +43,9 @@ const getEmptySchoolNurseryValues = (): LandSchoolNurseryFormValues => ({
 });
 
 const LandSchoolNurseryService = () => {
-    const { data, get, update, getLoading, updateLoading } = useLandServicesSchoolNurseryStore();
+    const { get, update, getLoading, updateLoading } = useLandServicesSchoolNurseryStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
-    const currentData = data?.[language] ?? null;
     const form = useForm<LandSchoolNurseryFormValues>({
         defaultValues: getEmptySchoolNurseryValues(),
         resolver: zodResolver(LandSchoolNurseryZodSchema),
@@ -56,32 +55,42 @@ const LandSchoolNurseryService = () => {
     const nurseryValue = useWatch({ control: form.control, name: "nursery" });
 
     useEffect(() => {
-        void get();
-    }, [get, language, form]);
+        let isActive = true;
+        form.reset(getEmptySchoolNurseryValues());
+        form.clearErrors();
 
-    useEffect(() => {
-        if (currentData === null) {
-            return;
-        }
-        form.reset({
-            schoolTrips: {
-                description: currentData.schoolTrips.description ?? "",
-                highlights: {
-                    icon: currentData.schoolTrips.highlights.icon ?? "",
-                    title: currentData.schoolTrips.highlights.line.title ?? "",
-                    description: currentData.schoolTrips.highlights.line.description ?? "",
+        const load = async () => {
+            const result = await get().catch(() => null);
+            if (!isActive) return;
+            if (!result) {
+                form.reset(getEmptySchoolNurseryValues());
+                return;
+            }
+            form.reset({
+                schoolTrips: {
+                    description: result.schoolTrips.description ?? "",
+                    highlights: {
+                        icon: result.schoolTrips.highlights.icon ?? "",
+                        title: result.schoolTrips.highlights.line.title ?? "",
+                        description: result.schoolTrips.highlights.line.description ?? "",
+                    },
                 },
-            },
-            nursery: {
-                description: currentData.nursery.description ?? "",
-                highlights: {
-                    icon: currentData.nursery.highlights.icon ?? "",
-                    title: currentData.nursery.highlights.line.title ?? "",
-                    description: currentData.nursery.highlights.line.description ?? "",
+                nursery: {
+                    description: result.nursery.description ?? "",
+                    highlights: {
+                        icon: result.nursery.highlights.icon ?? "",
+                        title: result.nursery.highlights.line.title ?? "",
+                        description: result.nursery.highlights.line.description ?? "",
+                    },
                 },
-            },
-        });
-    }, [currentData, form]);
+            });
+        };
+
+        void load();
+        return () => {
+            isActive = false;
+        };
+    }, [get, language, form]);
 
     const onSubmit = async (values: LandSchoolNurseryFormValues) => {
         await update({

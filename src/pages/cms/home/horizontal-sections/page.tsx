@@ -544,9 +544,8 @@ const SectionFields = ({ index, control, register, setValue, resetField, errors,
 };
 
 const HorizontalSectionsPage = () => {
-    const { data, get, update, getLoading, updateLoading } = useHomeHorizontalStore();
+    const { get, update, getLoading, updateLoading } = useHomeHorizontalStore();
     const language = useHomeLanguageStore((state) => state.language);
-    const horizontalData = data?.[language];
     const isRtl = language === "ar";
     const sectionsForm = useForm<HorizontalFormValues>({
         defaultValues: {
@@ -562,18 +561,19 @@ const HorizontalSectionsPage = () => {
     })
 
     useEffect(() => {
-        void get();
-    }, [get, language, sectionsForm]);
+        let isActive = true;
+        sectionsForm.reset({ sections: defaultSections });
+        sectionsForm.clearErrors();
 
-    useEffect(() => {
-        if (horizontalData === null || horizontalData === undefined) {
-            return;
-        }
-        if (horizontalData.length === 0) {
-            sectionsForm.reset({ sections: defaultSections });
-        } else {
+        const load = async () => {
+            const result = await get();
+            if (!isActive) return;
+            if (!result || result.length === 0) {
+                sectionsForm.reset({ sections: defaultSections });
+                return;
+            }
             sectionsForm.reset({
-                sections: horizontalData.map((section) => ({
+                sections: result.map((section) => ({
                     linkType: section.link.type === "external"
                         ? "link"
                         : section.link.contentType === "video"
@@ -586,8 +586,13 @@ const HorizontalSectionsPage = () => {
                     description: (section.description ?? []).map((value) => ({ value })),
                 })),
             });
-        }
-    }, [horizontalData, sectionsForm]);
+        };
+
+        void load();
+        return () => {
+            isActive = false;
+        };
+    }, [get, language, sectionsForm]);
 
     const onSubmit = async (data: HorizontalFormValues) => {
         const payload = data.sections.map((section) => ({

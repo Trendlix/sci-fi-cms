@@ -20,11 +20,9 @@ export const StudioHeroZodSchema = z.object({
 type StudioHeroFormValues = z.infer<typeof StudioHeroZodSchema>;
 
 const StudioHero = () => {
-    const { data, get, update, getLoading, updateLoading } = useStudioHeroStore();
+    const { get, update, getLoading, updateLoading } = useStudioHeroStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
-    const currentData = data?.[language];
-    const isReady = !getLoading && currentData !== undefined;
     const heroForm = useForm<StudioHeroFormValues>({
         defaultValues: {
             title: ["", "", "", "", "", ""],
@@ -36,30 +34,34 @@ const StudioHero = () => {
     const descriptionValue = useWatch({ control: heroForm.control, name: "description" });
 
     useEffect(() => {
+        let isActive = true;
         heroForm.reset({
             title: ["", "", "", "", "", ""],
             description: "",
         });
         heroForm.clearErrors();
-        void get();
-    }, [get, language, heroForm]);
 
-    useEffect(() => {
-        if (currentData === undefined) {
-            return;
-        }
-        if (!currentData) {
+        const load = async () => {
+            const result = await get();
+            if (!isActive) return;
+            if (!result) {
+                heroForm.reset({
+                    title: ["", "", "", "", "", ""],
+                    description: "",
+                });
+                return;
+            }
             heroForm.reset({
-                title: ["", "", "", "", "", ""],
-                description: "",
+                title: result.title?.length === 6 ? result.title : ["", "", "", "", "", ""],
+                description: result.description ?? "",
             });
-            return;
-        }
-        heroForm.reset({
-            title: currentData.title?.length === 6 ? currentData.title : ["", "", "", "", "", ""],
-            description: currentData.description ?? "",
-        });
-    }, [currentData, heroForm]);
+        };
+
+        void load();
+        return () => {
+            isActive = false;
+        };
+    }, [get, language, heroForm]);
 
     const onSubmit = async (formData: StudioHeroFormValues) => {
         await update(formData);
@@ -67,7 +69,7 @@ const StudioHero = () => {
 
     return (
         <FormProvider {...heroForm}>
-            {getLoading || !isReady ? (
+            {getLoading ? (
                 <LoadingSkeleton isRtl={isRtl} />
             ) : (
                 <form onSubmit={heroForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>

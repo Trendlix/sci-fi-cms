@@ -20,9 +20,8 @@ export const HeroZodValidationSchema = z.object({
 type HeroFormValues = z.infer<typeof HeroZodValidationSchema>;
 
 const HeroPage = () => {
-    const { data, get, update, getLoading, updateLoading } = useHomeHeroStore();
+    const { get, update, getLoading, updateLoading } = useHomeHeroStore();
     const language = useHomeLanguageStore((state) => state.language);
-    const currentData = data?.[language] ?? null;
     const isRtl = language === "ar";
     const heroForm = useForm<HeroFormValues>({
         defaultValues: {
@@ -34,17 +33,34 @@ const HeroPage = () => {
     })
 
     useEffect(() => {
-        void get();
-    }, [get, language, heroForm]);
-
-
-    useEffect(() => {
-        if (!currentData) return;
+        let isActive = true;
         heroForm.reset({
-            title: currentData.title?.length === 6 ? currentData.title : ["", "", "", "", "", ""],
-            description: currentData.description ?? "",
+            title: ["", "", "", "", "", ""],
+            description: "",
         });
-    }, [currentData, heroForm]);
+        heroForm.clearErrors();
+
+        const load = async () => {
+            const result = await get();
+            if (!isActive) return;
+            if (!result) {
+                heroForm.reset({
+                    title: ["", "", "", "", "", ""],
+                    description: "",
+                });
+                return;
+            }
+            heroForm.reset({
+                title: result.title?.length === 6 ? result.title : ["", "", "", "", "", ""],
+                description: result.description ?? "",
+            });
+        };
+
+        void load();
+        return () => {
+            isActive = false;
+        };
+    }, [get, language, heroForm]);
 
     const onSubmit = async (formData: HeroFormValues) => {
         await update(formData);
