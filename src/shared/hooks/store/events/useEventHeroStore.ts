@@ -32,6 +32,15 @@ export const useEventHeroStore = create<EventHeroState>((set, get) => ({
         set({ getLoading: true });
         try {
             const response = await fetch(buildEventsUrl("/api/v1/events/hero", language));
+            if (response.status === 404) {
+                set((state) => ({
+                    data: {
+                        ...state.data,
+                        [language]: null,
+                    },
+                }));
+                return null;
+            }
             const payload = await parseApiResponse<EventHeroPayload>(response, { showToast: false });
             set((state) => ({
                 data: {

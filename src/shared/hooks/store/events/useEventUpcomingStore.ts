@@ -41,6 +41,15 @@ export const useEventUpcomingStore = create<EventUpcomingState>((set, get) => ({
         set({ getLoading: true });
         try {
             const response = await fetch(buildEventsUrl("/api/v1/events/upcoming", language));
+            if (response.status === 404) {
+                set((state) => ({
+                    data: {
+                        ...state.data,
+                        [language]: null,
+                    },
+                }));
+                return null;
+            }
             const payload = await parseApiResponse<EventUpcomingPayload>(response, { showToast: false });
             set((state) => ({
                 data: {
@@ -58,6 +67,15 @@ export const useEventUpcomingStore = create<EventUpcomingState>((set, get) => ({
         set({ typesLoading: true });
         try {
             const response = await fetch(buildEventsUrl("/api/v1/events/upcoming/types", language));
+            if (response.status === 404) {
+                set((state) => ({
+                    types: {
+                        ...state.types,
+                        [language]: [],
+                    },
+                }));
+                return [];
+            }
             const payload = await parseApiResponse<string[]>(response, { showToast: false });
             const types = payload.data ?? [];
             set((state) => ({

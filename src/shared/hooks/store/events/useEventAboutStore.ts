@@ -21,6 +21,15 @@ export const useEventAboutStore = create<EventAboutState>((set) => ({
         set({ getLoading: true });
         try {
             const response = await fetch(buildEventsUrl("/api/v1/events/about", language));
+            if (response.status === 404) {
+                set((state) => ({
+                    data: {
+                        ...state.data,
+                        [language]: null,
+                    },
+                }));
+                return null;
+            }
             const payload = await parseApiResponse<EventAboutPayload>(response, { showToast: false });
             set((state) => ({
                 data: {

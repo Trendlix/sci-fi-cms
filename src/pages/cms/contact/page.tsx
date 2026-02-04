@@ -1,6 +1,6 @@
 import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import BasicRichEditor from "@/components/tiptap/BasicRichEditor";
 import { Button } from "@/components/ui/button";
 import {
     Select,
@@ -54,6 +54,16 @@ const defaultCard: ContactFormValues["getInTouch"]["cards"][number] = {
     lines: [""],
 };
 
+const DEFAULT_FORM_VALUES: ContactFormValues = {
+    hero: {
+        description: "",
+    },
+    getInTouch: {
+        description: "",
+        cards: [defaultCard],
+    },
+};
+
 const buildNewCard = (
     cards: ContactFormValues["getInTouch"]["cards"] = []
 ): ContactFormValues["getInTouch"]["cards"][number] => {
@@ -98,7 +108,7 @@ const CardFields = ({ index, form, watchedCards, isRemoveDisabled, onRemove }: C
                     Remove
                 </Button>
             </div>
-            <FieldGroup className="grid gap-4 md:grid-cols-2">
+            <FieldGroup>
                 <Field>
                     <FieldLabel htmlFor={`card-type-${index}`} className="text-white/80">
                         Type <span className="text-white">*</span>
@@ -193,74 +203,84 @@ type GetInTouchSectionProps = {
     watchedCards: CardItem[] | undefined;
 };
 
-const GetInTouchSection = ({ form, cardsFields, watchedCards }: GetInTouchSectionProps) => (
-    <div className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
-        <div className="space-y-1">
-            <h2 className="text-lg font-semibold text-white">Get in Touch</h2>
-            <p className="text-sm text-white/70">Add between 1 and 4 cards</p>
-        </div>
+const GetInTouchSection = ({ form, cardsFields, watchedCards }: GetInTouchSectionProps) => {
+    const descriptionValue = useWatch({
+        control: form.control,
+        name: "getInTouch.description",
+    });
 
-        <Field>
-            <FieldLabel htmlFor="get-in-touch-description" className="text-white/80">
-                Description <span className="text-white">*</span>
-            </FieldLabel>
-            <FieldContent>
-                <Textarea
-                    id="get-in-touch-description"
-                    placeholder="Get in touch description"
-                    className="min-h-[120px] border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                    {...form.register("getInTouch.description")}
-                />
-                <FieldError errors={[form.formState.errors.getInTouch?.description]} />
-            </FieldContent>
-        </Field>
+    return (
+        <div className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
+            <div className="space-y-1">
+                <h2 className="text-lg font-semibold text-white">Get in Touch</h2>
+                <p className="text-sm text-white/70">Add between 1 and 4 cards</p>
+            </div>
 
-        <div className="space-y-6">
-            {cardsFields.fields.map((field, index) => (
-                <CardFields
-                    key={field.id}
-                    index={index}
-                    form={form}
-                    watchedCards={watchedCards}
-                    isRemoveDisabled={cardsFields.fields.length <= 1}
-                    onRemove={() => cardsFields.remove(index)}
-                />
-            ))}
+            <Field>
+                <FieldLabel htmlFor="get-in-touch-description" className="text-white/80">
+                    Description <span className="text-white">*</span>
+                </FieldLabel>
+                <FieldContent>
+                    <BasicRichEditor
+                        name="getInTouch.description"
+                        value={descriptionValue ?? ""}
+                    />
+                    <FieldError errors={[form.formState.errors.getInTouch?.description]} />
+                </FieldContent>
+            </Field>
+
+            <div className="space-y-6">
+                {cardsFields.fields.map((field, index) => (
+                    <CardFields
+                        key={field.id}
+                        index={index}
+                        form={form}
+                        watchedCards={watchedCards}
+                        isRemoveDisabled={cardsFields.fields.length <= 1}
+                        onRemove={() => cardsFields.remove(index)}
+                    />
+                ))}
+            </div>
+            <Button
+                type="button"
+                className="bg-white/10 text-white hover:bg-white/20"
+                disabled={cardsFields.fields.length >= 4}
+                onClick={() => cardsFields.append(buildNewCard(watchedCards))}
+            >
+                Add card
+            </Button>
         </div>
-        <Button
-            type="button"
-            className="bg-white/10 text-white hover:bg-white/20"
-            disabled={cardsFields.fields.length >= 4}
-            onClick={() => cardsFields.append(buildNewCard(watchedCards))}
-        >
-            Add card
-        </Button>
-    </div>
-);
+    );
+};
 
 type HeroSectionProps = {
     form: FormApi;
 };
 
-const HeroSection = ({ form }: HeroSectionProps) => (
-    <div className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
-        <h2 className="text-lg font-semibold text-white">Hero</h2>
-        <Field>
-            <FieldLabel htmlFor="hero-description" className="text-white/80">
-                Description <span className="text-white">*</span>
-            </FieldLabel>
-            <FieldContent>
-                <Textarea
-                    id="hero-description"
-                    placeholder="Hero description"
-                    className="min-h-[120px] border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                    {...form.register("hero.description")}
-                />
-                <FieldError errors={[form.formState.errors.hero?.description]} />
-            </FieldContent>
-        </Field>
-    </div>
-);
+const HeroSection = ({ form }: HeroSectionProps) => {
+    const descriptionValue = useWatch({
+        control: form.control,
+        name: "hero.description",
+    });
+
+    return (
+        <div className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
+            <h2 className="text-lg font-semibold text-white">Hero</h2>
+            <Field>
+                <FieldLabel htmlFor="hero-description" className="text-white/80">
+                    Description <span className="text-white">*</span>
+                </FieldLabel>
+                <FieldContent>
+                    <BasicRichEditor
+                        name="hero.description"
+                        value={descriptionValue ?? ""}
+                    />
+                    <FieldError errors={[form.formState.errors.hero?.description]} />
+                </FieldContent>
+            </Field>
+        </div>
+    );
+};
 
 const ContactPageHeader = () => (
     <div className="space-y-1 text-white">
@@ -309,20 +329,12 @@ const SaveButton = ({ isDisabled, isLoading }: SaveButtonProps) => (
 );
 
 const ContactPage = () => {
-    const { data: contactData, get, update, getLoading, updateLoading } = useContactStore();
+    const { get, update, getLoading, updateLoading } = useContactStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
     const hasInitialized = useRef(false);
     const contactForm = useForm<ContactFormValues>({
-        defaultValues: {
-            hero: {
-                description: "",
-            },
-            getInTouch: {
-                description: "",
-                cards: [defaultCard],
-            },
-        },
+        defaultValues: DEFAULT_FORM_VALUES,
         resolver: zodResolver(ContactZodValidationSchema),
         mode: "onChange",
     });
@@ -338,30 +350,41 @@ const ContactPage = () => {
     });
 
     useEffect(() => {
+        let isActive = true;
         hasInitialized.current = false;
-        void get();
-    }, [get, language]);
+        contactForm.reset(DEFAULT_FORM_VALUES);
+        contactForm.clearErrors();
 
-    useEffect(() => {
-        if (contactData === null || hasInitialized.current) {
-            return;
-        }
-        contactForm.reset({
-            hero: {
-                description: contactData.hero?.description ?? "",
-            },
-            getInTouch: {
-                description: contactData.getInTouch?.description ?? "",
-                cards: contactData.getInTouch?.cards?.length
-                    ? contactData.getInTouch.cards.map((card) => ({
-                        type: card.type ?? "",
-                        lines: card.lines?.length ? card.lines : [""],
-                    }))
-                    : [defaultCard],
-            },
-        });
-        hasInitialized.current = true;
-    }, [contactData, contactForm]);
+        const load = async () => {
+            const result = await get();
+            if (!isActive) return;
+            if (!result) {
+                contactForm.reset(DEFAULT_FORM_VALUES);
+                hasInitialized.current = true;
+                return;
+            }
+            contactForm.reset({
+                hero: {
+                    description: result.hero?.description ?? "",
+                },
+                getInTouch: {
+                    description: result.getInTouch?.description ?? "",
+                    cards: result.getInTouch?.cards?.length
+                        ? result.getInTouch.cards.map((card) => ({
+                            type: card.type ?? "",
+                            lines: card.lines?.length ? card.lines : [""],
+                        }))
+                        : [defaultCard],
+                },
+            });
+            hasInitialized.current = true;
+        };
+
+        void load();
+        return () => {
+            isActive = false;
+        };
+    }, [get, language, contactForm]);
 
     const onSubmit = async (formData: ContactFormValues) => {
         const payload: ContactPayload = {

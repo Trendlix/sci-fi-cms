@@ -35,6 +35,15 @@ export const useEventFeaturedStore = create<EventFeaturedState>((set, get) => ({
         set({ getLoading: true });
         try {
             const response = await fetch(buildEventsUrl("/api/v1/events/featured", language));
+            if (response.status === 404) {
+                set((state) => ({
+                    data: {
+                        ...state.data,
+                        [language]: null,
+                    },
+                }));
+                return null;
+            }
             const payload = await parseApiResponse<EventFeaturedPayload>(response, { showToast: false });
             set((state) => ({
                 data: {

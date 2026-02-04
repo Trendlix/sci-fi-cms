@@ -1,11 +1,11 @@
 import { Field, FieldContent, FieldError, FieldLabel } from "@/components/ui/field";
-import { Textarea } from "@/components/ui/textarea";
+import BasicRichEditor from "@/components/tiptap/BasicRichEditor";
 import { Button } from "@/components/ui/button";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useFieldArray, useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -128,12 +128,10 @@ const PartnerThumbnail = ({ index, file, existing, canRemove, onRemove, onMove, 
 };
 
 const EventPartners = () => {
-    const { data, get, update, getLoading, updateLoading } = useEventPartnersStore();
+    const { get, update, getLoading, updateLoading } = useEventPartnersStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
     const openPreview = usePreviewModalStore((state) => state.open);
-    const currentData = data?.[language] ?? null;
-    const hasInitialized = useRef(false);
     const partnersForm = useForm<EventPartnersFormValues>({
         defaultValues: {
             description: "",
@@ -148,29 +146,36 @@ const EventPartners = () => {
         name: "files",
     });
     const watchedFiles = useWatch({ control: partnersForm.control, name: "files" }) ?? [];
+    const descriptionValue = useWatch({ control: partnersForm.control, name: "description" });
 
     useEffect(() => {
-        hasInitialized.current = false;
-        void get();
-    }, [get, language]);
-
-    useEffect(() => {
-        if (currentData === null || hasInitialized.current) {
-            return;
-        }
-        if (!currentData.files?.length) {
+        let isActive = true;
+        const load = async () => {
             partnersForm.reset({ description: "", files: [] });
-        } else {
+            partnersForm.clearErrors();
+
+            const result = await get().catch(() => null);
+            if (!isActive) return;
+            if (!result) {
+                partnersForm.reset({ description: "", files: [] });
+                return;
+            }
             partnersForm.reset({
-                description: currentData.description ?? "",
-                files: currentData.files.map((file) => ({
-                    file: undefined,
-                    existing: file,
-                })),
+                description: result.description ?? "",
+                files: result.files?.length
+                    ? result.files.map((file) => ({
+                        file: undefined,
+                        existing: file,
+                    }))
+                    : [],
             });
-        }
-        hasInitialized.current = true;
-    }, [currentData, partnersForm]);
+        };
+
+        void load();
+        return () => {
+            isActive = false;
+        };
+    }, [get, language, partnersForm]);
 
     const onSubmit = async (formData: EventPartnersFormValues) => {
         await update({
@@ -213,11 +218,9 @@ const EventPartners = () => {
                         Description <span className="text-white">*</span>
                     </FieldLabel>
                     <FieldContent>
-                        <Textarea
-                            id="events-partners-description"
-                            placeholder="Enter description"
-                            className="min-h-28 border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                            {...partnersForm.register("description")}
+                        <BasicRichEditor
+                            name="description"
+                            value={descriptionValue ?? ""}
                         />
                         <FieldError errors={[partnersForm.formState.errors.description]} />
                     </FieldContent>

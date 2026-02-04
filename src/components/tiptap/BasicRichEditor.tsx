@@ -3,6 +3,7 @@ import { useFormContext } from 'react-hook-form';
 import RichTextEditor from 'reactjs-tiptap-editor';
 import { BaseKit } from 'reactjs-tiptap-editor';
 
+import { Bold } from 'reactjs-tiptap-editor/bold';
 import { Italic } from 'reactjs-tiptap-editor/italic';
 import { TextUnderline } from 'reactjs-tiptap-editor/textunderline';
 
@@ -32,7 +33,7 @@ const extensions = [
         placeholder: { showOnlyCurrent: true },
         characterCount: { limit: 10_000 },
     }),
-    Italic, TextUnderline,
+    Bold, Italic, TextUnderline,
     BulletList, OrderedList, Clear,
     LinkExtension.extend({
         renderHTML({ HTMLAttributes }: { HTMLAttributes: Record<string, string> }) {

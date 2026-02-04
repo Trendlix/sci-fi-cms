@@ -1,13 +1,12 @@
 import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import BasicRichEditor from "@/components/tiptap/BasicRichEditor";
 import { Button } from "@/components/ui/button";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useFieldArray, useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -32,22 +31,23 @@ const defaultCard: EventAboutFormValues["cards"][number] = {
     description: "",
 };
 
+const DEFAULT_VALUES: EventAboutFormValues = {
+    description: "",
+    cards: [defaultCard],
+};
+
 const EventsAbout = () => {
-    const { data, get, update, getLoading, updateLoading } = useEventAboutStore();
+    const { get, update, getLoading, updateLoading } = useEventAboutStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
-    const currentData = data?.[language] ?? null;
-    const hasInitialized = useRef(false);
     const aboutForm = useForm<EventAboutFormValues>({
-        defaultValues: {
-            description: "",
-            cards: [defaultCard],
-        },
+        defaultValues: DEFAULT_VALUES,
         resolver: zodResolver(EventAboutZodSchema),
         mode: "onChange",
     });
 
     const cardsValue = useWatch({ control: aboutForm.control, name: "cards" });
+    const descriptionValue = useWatch({ control: aboutForm.control, name: "description" });
 
     const cardFields = useFieldArray({
         control: aboutForm.control,
@@ -55,26 +55,34 @@ const EventsAbout = () => {
     });
 
     useEffect(() => {
-        hasInitialized.current = false;
-        void get();
-    }, [get, language]);
+        let isActive = true;
+        aboutForm.reset(DEFAULT_VALUES);
+        aboutForm.clearErrors();
 
-    useEffect(() => {
-        if (currentData === null || hasInitialized.current) {
-            return;
-        }
-        aboutForm.reset({
-            description: currentData.description ?? "",
-            cards: currentData.cards?.length
-                ? currentData.cards.map((card) => ({
-                    icon: card.icon ?? "",
-                    title: card.title ?? "",
-                    description: card.description ?? "",
-                }))
-                : [defaultCard],
-        });
-        hasInitialized.current = true;
-    }, [currentData, aboutForm]);
+        const load = async () => {
+            const result = await get().catch(() => null);
+            if (!isActive) return;
+            if (!result) {
+                aboutForm.reset(DEFAULT_VALUES);
+                return;
+            }
+            aboutForm.reset({
+                description: result.description ?? "",
+                cards: result.cards?.length
+                    ? result.cards.map((card) => ({
+                        icon: card.icon ?? "",
+                        title: card.title ?? "",
+                        description: card.description ?? "",
+                    }))
+                    : [defaultCard],
+            });
+        };
+
+        void load();
+        return () => {
+            isActive = false;
+        };
+    }, [get, language, aboutForm]);
 
     const onSubmit = async (formData: EventAboutFormValues) => {
         await update(formData);
@@ -112,11 +120,9 @@ const EventsAbout = () => {
                         Description <span className="text-white">*</span>
                     </FieldLabel>
                     <FieldContent>
-                        <Textarea
-                            id="events-about-description"
-                            placeholder="Enter description"
-                            className="min-h-28 border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                            {...aboutForm.register("description")}
+                        <BasicRichEditor
+                            name="description"
+                            value={descriptionValue ?? ""}
                         />
                         <FieldError errors={[aboutForm.formState.errors.description]} />
                     </FieldContent>

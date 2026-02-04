@@ -1,9 +1,9 @@
 import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import BasicRichEditor from "@/components/tiptap/BasicRichEditor";
 import { Button } from "@/components/ui/button";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FormProvider, useForm } from "react-hook-form";
+import { FormProvider, useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef } from "react";
@@ -23,7 +23,8 @@ const StudioHero = () => {
     const { data, get, update, getLoading, updateLoading } = useStudioHeroStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
-    const currentData = data?.[language] ?? null;
+    const currentData = data?.[language];
+    const isReady = !getLoading && currentData !== undefined;
     const hasInitialized = useRef(false);
     const heroForm = useForm<StudioHeroFormValues>({
         defaultValues: {
@@ -33,14 +34,28 @@ const StudioHero = () => {
         resolver: zodResolver(StudioHeroZodSchema),
         mode: "onChange",
     });
+    const descriptionValue = useWatch({ control: heroForm.control, name: "description" });
 
     useEffect(() => {
         hasInitialized.current = false;
+        heroForm.reset({
+            title: ["", "", "", "", "", ""],
+            description: "",
+        });
+        heroForm.clearErrors();
         void get();
-    }, [get, language]);
+    }, [get, language, heroForm]);
 
     useEffect(() => {
-        if (currentData === null || hasInitialized.current) {
+        if (hasInitialized.current || currentData === undefined) {
+            return;
+        }
+        if (!currentData) {
+            heroForm.reset({
+                title: ["", "", "", "", "", ""],
+                description: "",
+            });
+            hasInitialized.current = true;
             return;
         }
         heroForm.reset({
@@ -54,7 +69,7 @@ const StudioHero = () => {
         await update(formData);
     };
 
-    if (getLoading) {
+    if (getLoading || !isReady) {
         return (
             <div className={cn("space-y-4", isRtl && "home-rtl")}>
                 <CommonLanguageSwitcherCheckbox />
@@ -104,12 +119,7 @@ const StudioHero = () => {
                         Description <span className="text-white">*</span>
                     </FieldLabel>
                     <FieldContent>
-                        <Textarea
-                            id="studio-hero-description"
-                            placeholder="Enter description"
-                            className="min-h-28 border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                            {...heroForm.register("description")}
-                        />
+                        <BasicRichEditor name="description" value={descriptionValue ?? ""} />
                         <FieldError errors={[heroForm.formState.errors.description]} />
                     </FieldContent>
                 </Field>

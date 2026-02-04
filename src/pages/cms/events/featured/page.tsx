@@ -1,17 +1,17 @@
 import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import BasicRichEditor from "@/components/tiptap/BasicRichEditor";
 import { Button } from "@/components/ui/button";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, FormProvider, useFieldArray, useForm, useFormContext, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEventFeaturedStore } from "@/shared/hooks/store/events/useEventFeaturedStore";
+import type { EventFeaturedPayload } from "@/shared/hooks/store/events/events.types";
 import { Upload, X } from "lucide-react";
 
 const fileSchema = z.any().refine((file) => !file || file instanceof File, {
@@ -164,11 +164,10 @@ const HighlightsList = ({ cardIndex }: HighlightsListProps) => {
 };
 
 const EventsFeatured = () => {
-    const { data, get, update, getLoading, updateLoading } = useEventFeaturedStore();
+    const { get, update, getLoading, updateLoading } = useEventFeaturedStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
-    const currentData = data?.[language] ?? null;
-    const hasInitialized = useRef(false);
+    const [currentData, setCurrentData] = useState<EventFeaturedPayload | null>(null);
     const featuredForm = useForm<EventFeaturedFormValues>({
         defaultValues: {
             description: "",
@@ -179,6 +178,7 @@ const EventsFeatured = () => {
     });
 
     const cardsValue = useWatch({ control: featuredForm.control, name: "cards" });
+    const descriptionValue = useWatch({ control: featuredForm.control, name: "description" });
 
     const cardFields = useFieldArray({
         control: featuredForm.control,
@@ -186,30 +186,40 @@ const EventsFeatured = () => {
     });
 
     useEffect(() => {
-        hasInitialized.current = false;
-        void get();
-    }, [get, language]);
+        let isActive = true;
+        const load = async () => {
+            setCurrentData(null);
+            featuredForm.reset({ description: "", cards: [defaultCard] });
+            featuredForm.clearErrors();
+            const result = await get().catch(() => null);
+            if (!isActive) return;
+            if (!result) {
+                featuredForm.reset({ description: "", cards: [defaultCard] });
+                setCurrentData(null);
+                return;
+            }
+            setCurrentData(result);
+            featuredForm.reset({
+                description: result.description ?? "",
+                cards: result.cards?.length
+                    ? result.cards.map((card) => ({
+                        fileFile: undefined,
+                        tag: card.tag ?? "",
+                        title: card.title ?? "",
+                        description: card.description ?? "",
+                        highlights: card.highlights?.length
+                            ? card.highlights.map((value) => ({ value }))
+                            : defaultHighlights(),
+                    }))
+                    : [defaultCard],
+            });
+        };
 
-    useEffect(() => {
-        if (currentData === null || hasInitialized.current) {
-            return;
-        }
-        featuredForm.reset({
-            description: currentData.description ?? "",
-            cards: currentData.cards?.length
-                ? currentData.cards.map((card) => ({
-                    fileFile: undefined,
-                    tag: card.tag ?? "",
-                    title: card.title ?? "",
-                    description: card.description ?? "",
-                    highlights: card.highlights?.length
-                        ? card.highlights.map((value) => ({ value }))
-                        : defaultHighlights(),
-                }))
-                : [defaultCard],
-        });
-        hasInitialized.current = true;
-    }, [currentData, featuredForm]);
+        void load();
+        return () => {
+            isActive = false;
+        };
+    }, [get, language, featuredForm]);
 
     const toList = (items: { value: string }[]) => items.map((item) => item.value.trim()).filter(Boolean);
 
@@ -260,11 +270,9 @@ const EventsFeatured = () => {
                         Description <span className="text-white">*</span>
                     </FieldLabel>
                     <FieldContent>
-                        <Textarea
-                            id="events-featured-description"
-                            placeholder="Enter description"
-                            className="min-h-28 border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                            {...featuredForm.register("description")}
+                        <BasicRichEditor
+                            name="description"
+                            value={descriptionValue ?? ""}
                         />
                         <FieldError errors={[featuredForm.formState.errors.description]} />
                     </FieldContent>

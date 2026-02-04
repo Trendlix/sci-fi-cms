@@ -1,17 +1,17 @@
 import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import BasicRichEditor from "@/components/tiptap/BasicRichEditor";
 import { Button } from "@/components/ui/button";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, FormProvider, useFieldArray, useForm, useFormContext, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEventHowStore } from "@/shared/hooks/store/events/useEventHowStore";
+import type { EventHowPayload } from "@/shared/hooks/store/events/events.types";
 import { Upload, X } from "lucide-react";
 
 const fileSchema = z.any().refine((file) => !file || file instanceof File, {
@@ -164,11 +164,10 @@ const HighlightsList = ({ cardIndex }: HighlightsListProps) => {
 };
 
 const EventsHow = () => {
-    const { data, get, update, getLoading, updateLoading } = useEventHowStore();
+    const { get, update, getLoading, updateLoading } = useEventHowStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
-    const currentData = data?.[language] ?? null;
-    const hasInitialized = useRef(false);
+    const [currentData, setCurrentData] = useState<EventHowPayload | null>(null);
     const howForm = useForm<EventHowFormValues>({
         defaultValues: {
             description: "",
@@ -179,6 +178,7 @@ const EventsHow = () => {
     });
 
     const cardsValue = useWatch({ control: howForm.control, name: "cards" });
+    const descriptionValue = useWatch({ control: howForm.control, name: "description" });
 
     const cardFields = useFieldArray({
         control: howForm.control,
@@ -186,30 +186,40 @@ const EventsHow = () => {
     });
 
     useEffect(() => {
-        hasInitialized.current = false;
-        void get();
-    }, [get, language]);
+        let isActive = true;
+        const load = async () => {
+            setCurrentData(null);
+            howForm.reset({ description: "", cards: [defaultCard] });
+            howForm.clearErrors();
+            const result = await get().catch(() => null);
+            if (!isActive) return;
+            if (!result) {
+                howForm.reset({ description: "", cards: [defaultCard] });
+                setCurrentData(null);
+                return;
+            }
+            setCurrentData(result);
+            howForm.reset({
+                description: result.description ?? "",
+                cards: result.cards?.length
+                    ? result.cards.map((card) => ({
+                        fileFile: undefined,
+                        icon: card.icon ?? "",
+                        title: card.title ?? "",
+                        description: card.description ?? "",
+                        highlights: card.highlights?.length
+                            ? card.highlights.map((value) => ({ value }))
+                            : defaultHighlights(),
+                    }))
+                    : [defaultCard],
+            });
+        };
 
-    useEffect(() => {
-        if (currentData === null || hasInitialized.current) {
-            return;
-        }
-        howForm.reset({
-            description: currentData.description ?? "",
-            cards: currentData.cards?.length
-                ? currentData.cards.map((card) => ({
-                    fileFile: undefined,
-                    icon: card.icon ?? "",
-                    title: card.title ?? "",
-                    description: card.description ?? "",
-                    highlights: card.highlights?.length
-                        ? card.highlights.map((value) => ({ value }))
-                        : defaultHighlights(),
-                }))
-                : [defaultCard],
-        });
-        hasInitialized.current = true;
-    }, [currentData, howForm]);
+        void load();
+        return () => {
+            isActive = false;
+        };
+    }, [get, language, howForm]);
 
     const toList = (items: { value: string }[]) => items.map((item) => item.value.trim()).filter(Boolean);
 
@@ -260,11 +270,9 @@ const EventsHow = () => {
                         Description <span className="text-white">*</span>
                     </FieldLabel>
                     <FieldContent>
-                        <Textarea
-                            id="events-how-description"
-                            placeholder="Enter description"
-                            className="min-h-28 border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                            {...howForm.register("description")}
+                        <BasicRichEditor
+                            name="description"
+                            value={descriptionValue ?? ""}
                         />
                         <FieldError errors={[howForm.formState.errors.description]} />
                     </FieldContent>

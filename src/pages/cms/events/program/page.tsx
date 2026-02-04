@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useFieldArray, useForm, useFormContext, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -98,11 +98,9 @@ const FeaturesList = ({ cardKey }: FeaturesListProps) => {
 };
 
 const EventsProgram = () => {
-    const { data, get, update, getLoading, updateLoading } = useEventProgramStore();
+    const { get, update, getLoading, updateLoading } = useEventProgramStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
-    const currentData = data?.[language] ?? null;
-    const hasInitialized = useRef(false);
     const programForm = useForm<EventProgramFormValues>({
         defaultValues: {
             vr_arena: defaultCard(),
@@ -118,30 +116,50 @@ const EventsProgram = () => {
     const cardValues = useWatch({ control: programForm.control });
 
     useEffect(() => {
-        hasInitialized.current = false;
-        void get();
-    }, [get, language]);
-
-    useEffect(() => {
-        if (currentData === null || hasInitialized.current) {
-            return;
-        }
-        const toCard = (card?: EventProgramPayload[ProgramKey]) => ({
-            icon: card?.icon ?? "",
-            description: card?.description ?? "",
-            features: card?.features?.length
-                ? card.features.map((value) => ({ value }))
-                : defaultFeatures(),
-        });
+        let isActive = true;
         programForm.reset({
-            vr_arena: toCard(currentData.vr_arena),
-            printing_lab_3d: toCard(currentData.printing_lab_3d),
-            innovation_lab: toCard(currentData.innovation_lab),
-            tech_museum: toCard(currentData.tech_museum),
-            digital_art_studio: toCard(currentData.digital_art_studio),
+            vr_arena: defaultCard(),
+            printing_lab_3d: defaultCard(),
+            innovation_lab: defaultCard(),
+            tech_museum: defaultCard(),
+            digital_art_studio: defaultCard(),
         });
-        hasInitialized.current = true;
-    }, [currentData, programForm]);
+        programForm.clearErrors();
+
+        const load = async () => {
+            const result = await get().catch(() => null);
+            if (!isActive) return;
+            if (!result) {
+                programForm.reset({
+                    vr_arena: defaultCard(),
+                    printing_lab_3d: defaultCard(),
+                    innovation_lab: defaultCard(),
+                    tech_museum: defaultCard(),
+                    digital_art_studio: defaultCard(),
+                });
+                return;
+            }
+            const toCard = (card?: EventProgramPayload[ProgramKey]) => ({
+                icon: card?.icon ?? "",
+                description: card?.description ?? "",
+                features: card?.features?.length
+                    ? card.features.map((value) => ({ value }))
+                    : defaultFeatures(),
+            });
+            programForm.reset({
+                vr_arena: toCard(result.vr_arena),
+                printing_lab_3d: toCard(result.printing_lab_3d),
+                innovation_lab: toCard(result.innovation_lab),
+                tech_museum: toCard(result.tech_museum),
+                digital_art_studio: toCard(result.digital_art_studio),
+            });
+        };
+
+        void load();
+        return () => {
+            isActive = false;
+        };
+    }, [get, language, programForm]);
 
     const toList = (items: { value: string }[]) => items.map((item) => item.value.trim()).filter(Boolean);
 

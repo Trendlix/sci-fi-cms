@@ -1,16 +1,17 @@
 import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import BasicRichEditor from "@/components/tiptap/BasicRichEditor";
 import { Button } from "@/components/ui/button";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, FormProvider, useFieldArray, useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEventHeroStore } from "@/shared/hooks/store/events/useEventHeroStore";
+import type { EventHeroPayload } from "@/shared/hooks/store/events/events.types";
 import { Upload } from "lucide-react";
 
 const fileSchema = z.any().refine((file) => !file || file instanceof File, {
@@ -107,11 +108,10 @@ const CardFileUploader = ({ control, name, inputId, existingUrl }: CardFileUploa
 };
 
 const EventsHero = () => {
-    const { data, get, update, getLoading, updateLoading } = useEventHeroStore();
+    const { get, update, getLoading, updateLoading } = useEventHeroStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
-    const currentData = data?.[language] ?? null;
-    const hasInitialized = useRef(false);
+    const [currentData, setCurrentData] = useState<EventHeroPayload | null>(null);
     const heroForm = useForm<EventHeroFormValues>({
         defaultValues: {
             cards: [defaultCard],
@@ -124,27 +124,38 @@ const EventsHero = () => {
         control: heroForm.control,
         name: "cards",
     });
+    const cardsValue = useWatch({ control: heroForm.control, name: "cards" });
 
     useEffect(() => {
-        hasInitialized.current = false;
-        void get();
-    }, [get, language]);
+        let isActive = true;
+        const load = async () => {
+            setCurrentData(null);
+            heroForm.reset({ cards: [defaultCard] });
+            heroForm.clearErrors();
+            const result = await get().catch(() => null);
+            if (!isActive) return;
+            if (!result) {
+                heroForm.reset({ cards: [defaultCard] });
+                setCurrentData(null);
+                return;
+            }
+            setCurrentData(result);
+            heroForm.reset({
+                cards: result.cards?.length
+                    ? result.cards.map((card) => ({
+                        fileFile: undefined,
+                        title: card.title?.length === 8 ? card.title : ["", "", "", "", "", "", "", ""],
+                        description: card.description ?? "",
+                    }))
+                    : [defaultCard],
+            });
+        };
 
-    useEffect(() => {
-        if (currentData === null || hasInitialized.current) {
-            return;
-        }
-        heroForm.reset({
-            cards: currentData.cards?.length
-                ? currentData.cards.map((card) => ({
-                    fileFile: undefined,
-                    title: card.title?.length === 8 ? card.title : ["", "", "", "", "", "", "", ""],
-                    description: card.description ?? "",
-                }))
-                : [defaultCard],
-        });
-        hasInitialized.current = true;
-    }, [currentData, heroForm]);
+        void load();
+        return () => {
+            isActive = false;
+        };
+    }, [get, language, heroForm]);
 
     const onSubmit = async (formData: EventHeroFormValues) => {
         await update(formData);
@@ -232,11 +243,9 @@ const EventsHero = () => {
                                     Description <span className="text-white">*</span>
                                 </FieldLabel>
                                 <FieldContent>
-                                    <Textarea
-                                        id={`events-hero-description-${index}`}
-                                        placeholder="Enter description"
-                                        className="min-h-28 border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                                        {...heroForm.register(`cards.${index}.description`)}
+                                    <BasicRichEditor
+                                        name={`cards.${index}.description`}
+                                        value={cardsValue?.[index]?.description ?? ""}
                                     />
                                     <FieldError errors={[heroForm.formState.errors.cards?.[index]?.description]} />
                                 </FieldContent>

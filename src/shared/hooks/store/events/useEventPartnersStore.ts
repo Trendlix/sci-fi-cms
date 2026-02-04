@@ -32,6 +32,15 @@ export const useEventPartnersStore = create<EventPartnersState>((set, get) => ({
         set({ getLoading: true });
         try {
             const response = await fetch(buildEventsUrl("/api/v1/events/partners", language));
+            if (response.status === 404) {
+                set((state) => ({
+                    data: {
+                        ...state.data,
+                        [language]: null,
+                    },
+                }));
+                return null;
+            }
             const payload = await parseApiResponse<EventPartnersPayload>(response, { showToast: false });
             set((state) => ({
                 data: {

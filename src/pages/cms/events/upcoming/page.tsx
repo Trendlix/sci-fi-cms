@@ -6,11 +6,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, FormProvider, useFieldArray, useForm, useFormContext, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEventUpcomingStore } from "@/shared/hooks/store/events/useEventUpcomingStore";
+import type { EventUpcomingPayload } from "@/shared/hooks/store/events/events.types";
 import { Upload, X } from "lucide-react";
 import {
     Combobox,
@@ -178,12 +179,11 @@ const HighlightsList = ({ cardIndex }: HighlightsListProps) => {
 };
 
 const EventsUpcoming = () => {
-    const { data, types, get, getTypes, update, getLoading, updateLoading, typesLoading } = useEventUpcomingStore();
+    const { types, get, getTypes, update, getLoading, updateLoading, typesLoading } = useEventUpcomingStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
-    const currentData = data?.[language] ?? null;
     const typeOptions = types?.[language] ?? [];
-    const hasInitialized = useRef(false);
+    const [currentData, setCurrentData] = useState<EventUpcomingPayload | null>(null);
     const upcomingForm = useForm<EventUpcomingFormValues>({
         defaultValues,
         resolver: zodResolver(EventUpcomingZodSchema),
@@ -198,32 +198,42 @@ const EventsUpcoming = () => {
     });
 
     useEffect(() => {
-        hasInitialized.current = false;
-        void get();
-        void getTypes();
-    }, [get, getTypes, language]);
+        let isActive = true;
+        const load = async () => {
+            setCurrentData(null);
+            upcomingForm.reset(defaultValues);
+            upcomingForm.clearErrors();
+            const result = await get().catch(() => null);
+            if (!isActive) return;
+            if (!result) {
+                upcomingForm.reset(defaultValues);
+                setCurrentData(null);
+                return;
+            }
+            setCurrentData(result);
+            upcomingForm.reset({
+                cards: result.length
+                    ? result.map((card) => ({
+                        fileFile: undefined,
+                        type: card.type ?? "",
+                        tag: card.tag ?? "",
+                        title: card.title ?? "",
+                        description: card.description ?? "",
+                        cta: card.cta ?? "",
+                        highlights: card.highlights?.length
+                            ? card.highlights.map((value) => ({ value }))
+                            : defaultHighlights(),
+                    }))
+                    : defaultValues.cards,
+            });
+        };
 
-    useEffect(() => {
-        if (currentData === null || hasInitialized.current) {
-            return;
-        }
-        upcomingForm.reset({
-            cards: currentData.length
-                ? currentData.map((card) => ({
-                    fileFile: undefined,
-                    type: card.type ?? "",
-                    tag: card.tag ?? "",
-                    title: card.title ?? "",
-                    description: card.description ?? "",
-                    cta: card.cta ?? "",
-                    highlights: card.highlights?.length
-                        ? card.highlights.map((value) => ({ value }))
-                        : defaultHighlights(),
-                }))
-                : defaultValues.cards,
-        });
-        hasInitialized.current = true;
-    }, [currentData, upcomingForm]);
+        void load();
+        void getTypes();
+        return () => {
+            isActive = false;
+        };
+    }, [get, getTypes, language, upcomingForm]);
 
     const toList = (items: { value: string }[]) => items.map((item) => item.value.trim()).filter(Boolean);
     const buildTypeOptions = (value: string) => {

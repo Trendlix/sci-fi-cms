@@ -1,12 +1,12 @@
 import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import BasicRichEditor from "@/components/tiptap/BasicRichEditor";
 import { Button } from "@/components/ui/button";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -37,11 +37,9 @@ const defaultValues: EventReadyFormValues = {
 };
 
 const EventsReady = () => {
-    const { data, get, update, getLoading, updateLoading } = useEventReadyStore();
+    const { get, update, getLoading, updateLoading } = useEventReadyStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
-    const currentData = data?.[language] ?? null;
-    const hasInitialized = useRef(false);
     const readyForm = useForm<EventReadyFormValues>({
         defaultValues,
         resolver: zodResolver(EventReadyZodSchema),
@@ -49,29 +47,38 @@ const EventsReady = () => {
     });
 
     const cardsValue = useWatch({ control: readyForm.control, name: "cards" });
+    const descriptionValue = useWatch({ control: readyForm.control, name: "description" });
 
     useEffect(() => {
-        hasInitialized.current = false;
-        void get();
-    }, [get, language]);
+        let isActive = true;
+        readyForm.reset(defaultValues);
+        readyForm.clearErrors();
 
-    useEffect(() => {
-        if (currentData === null || hasInitialized.current) {
-            return;
-        }
-        const cards = currentData.cards?.length === 3
-            ? currentData.cards.map((card) => ({
-                icon: card.icon ?? "",
-                no: card.no ?? 0,
-                title: card.title ?? "",
-            }))
-            : [defaultCard, defaultCard, defaultCard];
-        readyForm.reset({
-            description: currentData.description ?? "",
-            cards,
-        });
-        hasInitialized.current = true;
-    }, [currentData, readyForm]);
+        const load = async () => {
+            const result = await get().catch(() => null);
+            if (!isActive) return;
+            if (!result) {
+                readyForm.reset(defaultValues);
+                return;
+            }
+            const cards = result.cards?.length === 3
+                ? result.cards.map((card) => ({
+                    icon: card.icon ?? "",
+                    no: card.no ?? 0,
+                    title: card.title ?? "",
+                }))
+                : [defaultCard, defaultCard, defaultCard];
+            readyForm.reset({
+                description: result.description ?? "",
+                cards,
+            });
+        };
+
+        void load();
+        return () => {
+            isActive = false;
+        };
+    }, [get, language, readyForm]);
 
     const onSubmit = async (formData: EventReadyFormValues) => {
         await update(formData);
@@ -109,11 +116,9 @@ const EventsReady = () => {
                         Description <span className="text-white">*</span>
                     </FieldLabel>
                     <FieldContent>
-                        <Textarea
-                            id="events-ready-description"
-                            placeholder="Enter description"
-                            className="min-h-28 border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                            {...readyForm.register("description")}
+                        <BasicRichEditor
+                            name="description"
+                            value={descriptionValue ?? ""}
                         />
                         <FieldError errors={[readyForm.formState.errors.description]} />
                     </FieldContent>

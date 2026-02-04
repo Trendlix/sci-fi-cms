@@ -1,5 +1,5 @@
 import { Field, FieldContent, FieldError, FieldLabel } from "@/components/ui/field";
-import { Textarea } from "@/components/ui/textarea";
+import BasicRichEditor from "@/components/tiptap/BasicRichEditor";
 import { Button } from "@/components/ui/button";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useFieldArray, useForm, useWatch } from "react-hook-form";
@@ -40,6 +40,11 @@ export const StudioPartnersZodSchema = z.object({
 });
 
 type StudioPartnersFormValues = z.infer<typeof StudioPartnersZodSchema>;
+
+const STUDIO_PARTNERS_DEFAULT_VALUES: StudioPartnersFormValues = {
+    description: "",
+    files: [],
+};
 
 type PartnerThumbnailProps = {
     index: number;
@@ -130,17 +135,13 @@ const PartnerThumbnail = ({ index, file, existing, canRemove, onRemove, onMove, 
 };
 
 const StudioPartners = () => {
-    const { data, get, update, getLoading, updateLoading } = useStudioPartnersStore();
+    const { get, update, getLoading, updateLoading } = useStudioPartnersStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
     const openPreview = usePreviewModalStore((state) => state.open);
-    const currentData = data?.[language] ?? null;
     const hasInitialized = useRef(false);
     const partnersForm = useForm<StudioPartnersFormValues>({
-        defaultValues: {
-            description: "",
-            files: [],
-        },
+        defaultValues: STUDIO_PARTNERS_DEFAULT_VALUES,
         resolver: zodResolver(StudioPartnersZodSchema),
         mode: "onChange",
     });
@@ -150,29 +151,39 @@ const StudioPartners = () => {
         name: "files",
     });
     const watchedFiles = useWatch({ control: partnersForm.control, name: "files" }) ?? [];
+    const descriptionValue = useWatch({ control: partnersForm.control, name: "description" });
 
     useEffect(() => {
+        let isActive = true;
         hasInitialized.current = false;
-        void get();
-    }, [get, language]);
+        partnersForm.reset(STUDIO_PARTNERS_DEFAULT_VALUES);
+        partnersForm.clearErrors();
 
-    useEffect(() => {
-        if (currentData === null || hasInitialized.current) {
-            return;
-        }
-        if (!currentData.files?.length) {
-            partnersForm.reset({ description: "", files: [] });
-        } else {
+        const load = async () => {
+            const result = await get().catch(() => null);
+            if (!isActive) return;
+            if (!result) {
+                partnersForm.reset(STUDIO_PARTNERS_DEFAULT_VALUES);
+                hasInitialized.current = true;
+                return;
+            }
             partnersForm.reset({
-                description: currentData.description ?? "",
-                files: currentData.files.map((file) => ({
-                    file: undefined,
-                    existing: file,
-                })),
+                description: result.description ?? "",
+                files: result.files?.length
+                    ? result.files.map((file) => ({
+                        file: undefined,
+                        existing: file,
+                    }))
+                    : [],
             });
-        }
-        hasInitialized.current = true;
-    }, [currentData, partnersForm]);
+            hasInitialized.current = true;
+        };
+
+        void load();
+        return () => {
+            isActive = false;
+        };
+    }, [get, language, partnersForm]);
 
     const onSubmit = async (formData: StudioPartnersFormValues) => {
         await update({
@@ -215,12 +226,7 @@ const StudioPartners = () => {
                         Description <span className="text-white/70">(optional)</span>
                     </FieldLabel>
                     <FieldContent>
-                        <Textarea
-                            id="studio-partners-description"
-                            placeholder="Enter description"
-                            className="min-h-28 border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                            {...partnersForm.register("description")}
-                        />
+                        <BasicRichEditor name="description" value={descriptionValue ?? ""} />
                         <FieldError errors={[partnersForm.formState.errors.description]} />
                     </FieldContent>
                 </Field>

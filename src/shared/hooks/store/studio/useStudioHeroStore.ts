@@ -21,6 +21,15 @@ export const useStudioHeroStore = create<StudioHeroState>((set) => ({
         set({ getLoading: true });
         try {
             const response = await fetch(buildStudioUrl("/api/v1/studio/hero", language));
+            if (response.status === 404) {
+                set((state) => ({
+                    data: {
+                        ...state.data,
+                        [language]: null,
+                    },
+                }));
+                return null;
+            }
             const payload = await parseApiResponse<StudioHeroPayload>(response, { showToast: false });
             set((state) => ({
                 data: {
@@ -29,6 +38,14 @@ export const useStudioHeroStore = create<StudioHeroState>((set) => ({
                 },
             }));
             return payload.data ?? null;
+        } catch {
+            set((state) => ({
+                data: {
+                    ...state.data,
+                    [language]: null,
+                },
+            }));
+            return null;
         } finally {
             set({ getLoading: false });
         }

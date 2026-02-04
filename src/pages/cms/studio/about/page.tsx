@@ -1,19 +1,19 @@
 import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import BasicRichEditor from "@/components/tiptap/BasicRichEditor";
 import { Button } from "@/components/ui/button";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, FormProvider, useFieldArray, useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useStudioAboutStore } from "@/shared/hooks/store/studio/useStudioAboutStore";
 import { usePreviewModalStore } from "@/shared/hooks/store/ui/usePreviewModalStore";
 import { Upload, Image as ImageIcon } from "lucide-react";
+import type { StudioAboutPayload } from "@/shared/hooks/store/studio/studio.types";
 
 const cardSchema = z.object({
     tag: z.string().min(1, "Tag is required"),
@@ -36,6 +36,11 @@ const defaultCard: StudioAboutFormValues["cards"][number] = {
     title: "",
     description: "",
     fileFile: undefined,
+};
+
+const STUDIO_ABOUT_DEFAULT_VALUES: StudioAboutFormValues = {
+    description: "",
+    cards: [defaultCard],
 };
 
 type CardFileUploaderProps = {
@@ -119,21 +124,19 @@ const CardFileUploader = ({ control, name, inputId, existingUrl, onOpenPreview }
 };
 
 const StudioAbout = () => {
-    const { data, get, update, getLoading, updateLoading } = useStudioAboutStore();
+    const { get, update, getLoading, updateLoading } = useStudioAboutStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
     const openPreview = usePreviewModalStore((state) => state.open);
-    const currentData = data?.[language] ?? null;
+    const [currentData, setCurrentData] = useState<StudioAboutPayload | null>(null);
     const hasInitialized = useRef(false);
     const aboutForm = useForm<StudioAboutFormValues>({
-        defaultValues: {
-            description: "",
-            cards: [defaultCard],
-        },
+        defaultValues: STUDIO_ABOUT_DEFAULT_VALUES,
         resolver: zodResolver(StudioAboutZodSchema),
         mode: "onChange",
     });
     const cardsValue = useWatch({ control: aboutForm.control, name: "cards" });
+    const descriptionValue = useWatch({ control: aboutForm.control, name: "description" });
 
     const cardFields = useFieldArray({
         control: aboutForm.control,
@@ -141,30 +144,41 @@ const StudioAbout = () => {
     });
 
     useEffect(() => {
+        let isActive = true;
         hasInitialized.current = false;
-        void get();
-    }, [get, language]);
+        aboutForm.reset(STUDIO_ABOUT_DEFAULT_VALUES);
+        aboutForm.clearErrors();
 
-    useEffect(() => {
-        if (currentData === null || hasInitialized.current) {
-            return;
-        }
-        if (!currentData.cards?.length) {
-            aboutForm.reset({ description: "", cards: [defaultCard] });
-        } else {
+        const load = async () => {
+            const result = await get().catch(() => null);
+            if (!isActive) return;
+            if (!result) {
+                aboutForm.reset(STUDIO_ABOUT_DEFAULT_VALUES);
+                setCurrentData(null);
+                hasInitialized.current = true;
+                return;
+            }
+            setCurrentData(result);
             aboutForm.reset({
-                description: currentData.description ?? "",
-                cards: currentData.cards.map((card) => ({
-                    tag: card.tag ?? "",
-                    icon: card.icon ?? "",
-                    title: card.title ?? "",
-                    description: card.description ?? "",
-                    fileFile: undefined,
-                })),
+                description: result.description ?? "",
+                cards: result.cards?.length
+                    ? result.cards.map((card) => ({
+                        tag: card.tag ?? "",
+                        icon: card.icon ?? "",
+                        title: card.title ?? "",
+                        description: card.description ?? "",
+                        fileFile: undefined,
+                    }))
+                    : [defaultCard],
             });
-        }
-        hasInitialized.current = true;
-    }, [currentData, aboutForm]);
+            hasInitialized.current = true;
+        };
+
+        void load();
+        return () => {
+            isActive = false;
+        };
+    }, [get, language, aboutForm]);
 
     const onSubmit = async (formData: StudioAboutFormValues) => {
         await update(formData);
@@ -202,12 +216,7 @@ const StudioAbout = () => {
                         Description <span className="text-white">*</span>
                     </FieldLabel>
                     <FieldContent>
-                        <Textarea
-                            id="studio-about-description"
-                            placeholder="Enter description"
-                            className="min-h-28 border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                            {...aboutForm.register("description")}
-                        />
+                        <BasicRichEditor name="description" value={descriptionValue ?? ""} />
                         <FieldError errors={[aboutForm.formState.errors.description]} />
                     </FieldContent>
                 </Field>

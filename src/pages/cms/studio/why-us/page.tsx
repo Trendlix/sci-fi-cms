@@ -1,9 +1,9 @@
 import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import BasicRichEditor from "@/components/tiptap/BasicRichEditor";
 import { Button } from "@/components/ui/button";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FormProvider, useFieldArray, useForm } from "react-hook-form";
+import { FormProvider, useFieldArray, useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef } from "react";
@@ -29,20 +29,22 @@ const defaultLine: StudioWhyUsFormValues["lines"][number] = {
     line: "",
 };
 
+const STUDIO_WHY_US_DEFAULT_VALUES: StudioWhyUsFormValues = {
+    description: "",
+    lines: [defaultLine],
+};
+
 const StudioWhyUs = () => {
-    const { data, get, update, getLoading, updateLoading } = useStudioWhyUsStore();
+    const { get, update, getLoading, updateLoading } = useStudioWhyUsStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
-    const currentData = data?.[language] ?? null;
     const hasInitialized = useRef(false);
     const whyUsForm = useForm<StudioWhyUsFormValues>({
-        defaultValues: {
-            description: "",
-            lines: [defaultLine],
-        },
+        defaultValues: STUDIO_WHY_US_DEFAULT_VALUES,
         resolver: zodResolver(StudioWhyUsZodSchema),
         mode: "onChange",
     });
+    const descriptionValue = useWatch({ control: whyUsForm.control, name: "description" });
 
     const lineFields = useFieldArray({
         control: whyUsForm.control,
@@ -50,27 +52,36 @@ const StudioWhyUs = () => {
     });
 
     useEffect(() => {
+        let isActive = true;
         hasInitialized.current = false;
-        void get();
-    }, [get, language]);
+        whyUsForm.reset(STUDIO_WHY_US_DEFAULT_VALUES);
+        whyUsForm.clearErrors();
 
-    useEffect(() => {
-        if (currentData === null || hasInitialized.current) {
-            return;
-        }
-        if (!currentData.lines?.length) {
-            whyUsForm.reset({ description: "", lines: [defaultLine] });
-        } else {
+        const load = async () => {
+            const result = await get().catch(() => null);
+            if (!isActive) return;
+            if (!result) {
+                whyUsForm.reset(STUDIO_WHY_US_DEFAULT_VALUES);
+                hasInitialized.current = true;
+                return;
+            }
             whyUsForm.reset({
-                description: currentData.description ?? "",
-                lines: currentData.lines.map((line) => ({
-                    icon: line.icon ?? "",
-                    line: line.line ?? "",
-                })),
+                description: result.description ?? "",
+                lines: result.lines?.length
+                    ? result.lines.map((line) => ({
+                        icon: line.icon ?? "",
+                        line: line.line ?? "",
+                    }))
+                    : [defaultLine],
             });
-        }
-        hasInitialized.current = true;
-    }, [currentData, whyUsForm]);
+            hasInitialized.current = true;
+        };
+
+        void load();
+        return () => {
+            isActive = false;
+        };
+    }, [get, language, whyUsForm]);
 
     const onSubmit = async (formData: StudioWhyUsFormValues) => {
         await update(formData);
@@ -107,12 +118,7 @@ const StudioWhyUs = () => {
                         Description <span className="text-white">*</span>
                     </FieldLabel>
                     <FieldContent>
-                        <Textarea
-                            id="studio-why-us-description"
-                            placeholder="Enter description"
-                            className="min-h-28 border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                            {...whyUsForm.register("description")}
-                        />
+                        <BasicRichEditor name="description" value={descriptionValue ?? ""} />
                         <FieldError errors={[whyUsForm.formState.errors.description]} />
                     </FieldContent>
                 </Field>
@@ -150,11 +156,9 @@ const StudioWhyUs = () => {
                                         Line <span className="text-white">*</span>
                                     </FieldLabel>
                                     <FieldContent>
-                                        <Textarea
-                                            id={`studio-why-us-line-${index}`}
-                                            placeholder="Enter line"
-                                            className="min-h-20 border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                                            {...whyUsForm.register(`lines.${index}.line`)}
+                                        <BasicRichEditor
+                                            name={`lines.${index}.line`}
+                                            value={whyUsForm.watch(`lines.${index}.line`) ?? ""}
                                         />
                                         <FieldError errors={[whyUsForm.formState.errors.lines?.[index]?.line]} />
                                     </FieldContent>
