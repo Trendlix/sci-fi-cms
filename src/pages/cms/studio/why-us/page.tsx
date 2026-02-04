@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useFieldArray, useForm } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -34,6 +34,7 @@ const StudioWhyUs = () => {
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
     const currentData = data?.[language] ?? null;
+    const hasInitialized = useRef(false);
     const whyUsForm = useForm<StudioWhyUsFormValues>({
         defaultValues: {
             description: "",
@@ -49,21 +50,26 @@ const StudioWhyUs = () => {
     });
 
     useEffect(() => {
+        hasInitialized.current = false;
         void get();
     }, [get, language]);
 
     useEffect(() => {
-        if (!currentData?.lines?.length) {
-            whyUsForm.reset({ description: "", lines: [defaultLine] });
+        if (currentData === null || hasInitialized.current) {
             return;
         }
-        whyUsForm.reset({
-            description: currentData.description ?? "",
-            lines: currentData.lines.map((line) => ({
-                icon: line.icon ?? "",
-                line: line.line ?? "",
-            })),
-        });
+        if (!currentData.lines?.length) {
+            whyUsForm.reset({ description: "", lines: [defaultLine] });
+        } else {
+            whyUsForm.reset({
+                description: currentData.description ?? "",
+                lines: currentData.lines.map((line) => ({
+                    icon: line.icon ?? "",
+                    line: line.line ?? "",
+                })),
+            });
+        }
+        hasInitialized.current = true;
     }, [currentData, whyUsForm]);
 
     const onSubmit = async (formData: StudioWhyUsFormValues) => {

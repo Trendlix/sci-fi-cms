@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useFormContext } from 'react-hook-form';
 import RichTextEditor from 'reactjs-tiptap-editor';
 import { BaseKit } from 'reactjs-tiptap-editor';
@@ -45,9 +45,34 @@ const extensions = [
     Emoji, SearchAndReplace
 ];
 
-const BasicRichEditor = ({ name = 'content' }: { name: string }) => {
-    const { register, setValue, watch } = useFormContext();
-    const content = watch(name);
+const hashString = (value: string) => {
+    let hash = 0;
+    for (let index = 0; index < value.length; index += 1) {
+        hash = (hash * 31 + value.charCodeAt(index)) | 0;
+    }
+    return Math.abs(hash);
+};
+
+const BasicRichEditor = ({
+    name = 'content',
+    value,
+    onChange,
+}: {
+    name: string;
+    value?: string;
+    onChange?: (value: string) => void;
+}) => {
+    const { register, setValue, watch, formState, getFieldState } = useFormContext();
+    const watchedContent = watch(name);
+    const content = value ?? watchedContent;
+    const { isDirty } = getFieldState(name, formState);
+    const editorKey = useMemo(() => {
+        if (isDirty) {
+            return `basic-editor-dirty-${name}`;
+        }
+        const safeContent = content ?? "";
+        return `basic-editor-clean-${name}-${safeContent.length}-${hashString(safeContent)}`;
+    }, [content, isDirty, name]);
 
     useEffect(() => {
         register(name);
@@ -55,6 +80,7 @@ const BasicRichEditor = ({ name = 'content' }: { name: string }) => {
 
     const onChangeContent = (value: string) => {
         setValue(name, value, { shouldValidate: true, shouldDirty: true });
+        onChange?.(value);
     };
 
     const fieldContainerClass = 'relative rounded-md border border-white/20 bg-white/5 text-white focus-within:border-white/40';
@@ -63,9 +89,10 @@ const BasicRichEditor = ({ name = 'content' }: { name: string }) => {
     return (
         <div className={fieldContainerClass}>
             <RichTextEditor
+                key={editorKey}
                 output="html"
                 contentClass={editorContentClass}
-                content={content}
+                content={content ?? ""}
                 onChangeContent={onChangeContent}
                 extensions={extensions}
                 dark={true}

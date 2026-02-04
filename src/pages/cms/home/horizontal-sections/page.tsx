@@ -349,9 +349,10 @@ type DescriptionFieldsProps = {
     index: number;
     descriptionFields: ReturnType<typeof useFieldArray<HorizontalFormValues>>;
     errors: FieldErrors<HorizontalFormValues>;
+    descriptionValues?: { value?: string }[];
 };
 
-const DescriptionFields = ({ index, descriptionFields, errors }: DescriptionFieldsProps) => (
+const DescriptionFields = ({ index, descriptionFields, errors, descriptionValues }: DescriptionFieldsProps) => (
     <FieldGroup className="grid gap-4">
         {descriptionFields.fields.map((field, descriptionIndex) => (
             <Field key={field.id}>
@@ -359,7 +360,10 @@ const DescriptionFields = ({ index, descriptionFields, errors }: DescriptionFiel
                     Description {descriptionIndex + 1} <span className="text-white">*</span>
                 </FieldLabel>
                 <FieldContent>
-                    <BasicRichEditor name={`sections.${index}.description.${descriptionIndex}.value`} />
+                    <BasicRichEditor
+                        name={`sections.${index}.description.${descriptionIndex}.value`}
+                        value={descriptionValues?.[descriptionIndex]?.value ?? ""}
+                    />
                     <FieldError errors={[errors?.sections?.[index]?.description?.[descriptionIndex]?.value]} />
                 </FieldContent>
                 <div className="mt-2 flex justify-end">
@@ -415,6 +419,10 @@ const PageHeader = () => (
 const SectionFields = ({ index, control, register, setValue, resetField, errors, onRemove, canRemove, trigger }: SectionFieldsProps) => {
     const openPreview = usePreviewModalStore((state) => state.open);
     const descriptionFields = useFieldArray({
+        control,
+        name: `sections.${index}.description`,
+    });
+    const descriptionValues = useWatch({
         control,
         name: `sections.${index}.description`,
     });
@@ -515,7 +523,12 @@ const SectionFields = ({ index, control, register, setValue, resetField, errors,
                 <SectionTitles index={index} register={register} errors={errors} />
                 <SectionSlogan index={index} register={register} errors={errors} />
             </FieldGroup>
-            <DescriptionFields index={index} descriptionFields={descriptionFields} errors={errors} />
+            <DescriptionFields
+                index={index}
+                descriptionFields={descriptionFields}
+                errors={errors}
+                descriptionValues={descriptionValues}
+            />
             {descriptionFields.fields.length <= 1 ? (
                 <p className="text-xs text-white/60">At least one description is required.</p>
             ) : null}
@@ -534,6 +547,7 @@ const HorizontalSectionsPage = () => {
     const { data: horizontalData, get, update, getLoading, updateLoading } = useHomeHorizontalStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
+    const hasInitialized = useRef(false);
     const sectionsForm = useForm<HorizontalFormValues>({
         defaultValues: {
             sections: defaultSections,
@@ -548,28 +562,33 @@ const HorizontalSectionsPage = () => {
     })
 
     useEffect(() => {
+        hasInitialized.current = false;
         void get();
     }, [get, language]);
 
     useEffect(() => {
-        if (!horizontalData || horizontalData.length === 0) {
-            sectionsForm.reset({ sections: defaultSections });
+        if (horizontalData === null || hasInitialized.current) {
             return;
         }
-        sectionsForm.reset({
-            sections: horizontalData.map((section) => ({
-                linkType: section.link.type === "external"
-                    ? "link"
-                    : section.link.contentType === "video"
-                        ? "video"
-                        : "image",
-                linkUrl: section.link.url ?? "",
-                linkFile: undefined,
-                title: section.title ?? ["", ""],
-                slogan: section.slogan ?? "",
-                description: (section.description ?? []).map((value) => ({ value })),
-            })),
-        });
+        if (horizontalData.length === 0) {
+            sectionsForm.reset({ sections: defaultSections });
+        } else {
+            sectionsForm.reset({
+                sections: horizontalData.map((section) => ({
+                    linkType: section.link.type === "external"
+                        ? "link"
+                        : section.link.contentType === "video"
+                            ? "video"
+                            : "image",
+                    linkUrl: section.link.url ?? "",
+                    linkFile: undefined,
+                    title: section.title ?? ["", ""],
+                    slogan: section.slogan ?? "",
+                    description: (section.description ?? []).map((value) => ({ value })),
+                })),
+            });
+        }
+        hasInitialized.current = true;
     }, [horizontalData, sectionsForm]);
 
     const onSubmit = async (data: HorizontalFormValues) => {

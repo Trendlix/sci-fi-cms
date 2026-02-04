@@ -51,6 +51,7 @@ export const useLandServicesSchoolNurseryStore = create<LandServicesSchoolNurser
             };
             const response = await fetch(buildLandUrl("/api/v1/land/services/school-nursery", language), {
                 method: "PATCH",
+                cache: "no-store",
                 headers,
                 body: JSON.stringify(payload),
             });

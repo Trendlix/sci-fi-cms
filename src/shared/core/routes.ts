@@ -1,4 +1,4 @@
-import { CalendarIcon, HardDrive, HomeIcon, PhoneIcon, Clapperboard, type LucideIcon, MapPinned } from "lucide-react";
+import { CalendarIcon, HardDrive, HomeIcon, PhoneIcon, Clapperboard, type LucideIcon, MapPinned, Search } from "lucide-react";
 
 export interface IRoute {
     path: string,
@@ -36,7 +36,12 @@ const routes: IRoute[] = [
         path: "/cms/events",
         name: "Events",
         icon: CalendarIcon,
-    }
+    },
+    {
+        path: "/cms/seo/home",
+        name: "SEO",
+        icon: Search,
+    },
 ]
 
 export default routes;

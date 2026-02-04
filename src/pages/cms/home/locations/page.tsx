@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useFieldArray, useForm } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLocationsStore } from "@/shared/hooks/store/home/useHomeLocationsStore";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
@@ -35,6 +35,7 @@ const LocationsPage = () => {
     const { data: locationsData, get, update, getLoading, updateLoading } = useHomeLocationsStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
+    const hasInitialized = useRef(false);
     const locationsForm = useForm<LocationsFormValues>({
         defaultValues: {
             locations: defaultLocations,
@@ -49,21 +50,26 @@ const LocationsPage = () => {
     });
 
     useEffect(() => {
+        hasInitialized.current = false;
         void get();
     }, [get, language]);
 
     useEffect(() => {
-        if (!locationsData || locationsData.length === 0) {
-            locationsForm.reset({ locations: defaultLocations });
+        if (locationsData === null || hasInitialized.current) {
             return;
         }
-        locationsForm.reset({
-            locations: locationsData.map((item) => ({
-                title: item.title ?? "",
-                address: item.address ?? "",
-                mapUrl: item.mapUrl ?? "",
-            })),
-        });
+        if (locationsData.length === 0) {
+            locationsForm.reset({ locations: defaultLocations });
+        } else {
+            locationsForm.reset({
+                locations: locationsData.map((item) => ({
+                    title: item.title ?? "",
+                    address: item.address ?? "",
+                    mapUrl: item.mapUrl ?? "",
+                })),
+            });
+        }
+        hasInitialized.current = true;
     }, [locationsData, locationsForm]);
 
     const onSubmit = async (formData: LocationsFormValues) => {

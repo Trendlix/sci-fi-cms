@@ -1,4 +1,4 @@
-import { Info, Layers, MapPin, Rose, ScanEye, Star, TextSelect, type LucideIcon, Users, HelpCircle, MapPinned, TreePalm, Building2, Briefcase, Package, School, Footprints } from "lucide-react";
+import { Info, Layers, MapPin, Rose, Star, TextSelect, type LucideIcon, Users, HelpCircle, MapPinned, TreePalm, Building2, Briefcase, Package, School, Footprints, Search } from "lucide-react";
 
 export interface ITabItem {
     path: string;
@@ -50,11 +50,11 @@ export const aboutTabs: ITabItem[] = [
         name: "Service",
         icon: Layers,
     },
-    {
-        path: "/cms/about/pre-value",
-        name: "Pre Value",
-        icon: ScanEye,
-    },
+    // {
+    //     path: "/cms/about/pre-value",
+    //     name: "Pre Value",
+    //     icon: ScanEye,
+    // },
     {
         path: "/cms/about/value",
         name: "Value",
@@ -128,5 +128,81 @@ export const landServiceTabs: ITabItem[] = [
         path: "/cms/land/services/walkin",
         name: "Walkin",
         icon: Footprints,
+    },
+];
+
+export const eventsTabs: ITabItem[] = [
+    {
+        path: "/cms/events",
+        name: "Hero",
+        icon: TextSelect,
+    },
+    {
+        path: "/cms/events/about",
+        name: "About",
+        icon: Info,
+    },
+    // {
+    //     path: "/cms/events/program",
+    //     name: "Program",
+    //     icon: Layers,
+    // },
+    // {
+    //     path: "/cms/events/how",
+    //     name: "How",
+    //     icon: HelpCircle,
+    // },
+    // {
+    //     path: "/cms/events/ready",
+    //     name: "Ready",
+    //     icon: Star,
+    // },
+    {
+        path: "/cms/events/featured",
+        name: "Featured",
+        icon: Rose,
+    },
+    {
+        path: "/cms/events/partners",
+        name: "Partners",
+        icon: Users,
+    },
+    // {
+    //     path: "/cms/events/upcoming",
+    //     name: "Upcoming",
+    //     icon: MapPin,
+    // },
+];
+
+export const seoTabs: ITabItem[] = [
+    {
+        path: "/cms/seo/home",
+        name: "Home",
+        icon: Search,
+    },
+    {
+        path: "/cms/seo/about",
+        name: "About",
+        icon: Info,
+    },
+    {
+        path: "/cms/seo/contact",
+        name: "Contact",
+        icon: MapPin,
+    },
+    {
+        path: "/cms/seo/events",
+        name: "Events",
+        icon: Star,
+    },
+    {
+        path: "/cms/seo/studio",
+        name: "Studio",
+        icon: Users,
+    },
+    {
+        path: "/cms/seo/land",
+        name: "Land",
+        icon: MapPinned,
     },
 ];

@@ -24,7 +24,7 @@ import {
 } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -505,19 +505,25 @@ const LandBirthdayService = () => {
     const isRtl = language === "ar";
     const currentData = data?.[language] ?? null;
     const { open: openPreview } = usePreviewModalStore();
+    const hasInitialized = useRef(false);
     const form = useForm<LandBirthdayFormValues>({
         defaultValues: getEmptyBirthdayValues(),
         resolver: zodResolver(LandBirthdayZodSchema),
         mode: "onChange",
     });
+    const descriptionValue = useWatch({ control: form.control, name: "description" });
+    const packageDescriptionValue = useWatch({
+        control: form.control,
+        name: "packages.prince.description",
+    });
 
     useEffect(() => {
+        hasInitialized.current = false;
         void get();
     }, [get, language]);
 
     useEffect(() => {
-        if (!currentData) {
-            form.reset(getEmptyBirthdayValues());
+        if (currentData === null || hasInitialized.current) {
             return;
         }
         const toFileEntry = (file?: LandFile): BirthdayFileEntry => ({
@@ -557,6 +563,7 @@ const LandBirthdayService = () => {
                 },
             },
         });
+        hasInitialized.current = true;
     }, [currentData, form]);
 
     const filesArray = useFieldArray({
@@ -646,7 +653,7 @@ const LandBirthdayService = () => {
                             Description <span className="text-white">*</span>
                         </FieldLabel>
                         <FieldContent>
-                            <BasicRichEditor name="description" />
+                            <BasicRichEditor name="description" value={descriptionValue ?? ""} />
                             <FieldError errors={[form.formState.errors.description]} />
                         </FieldContent>
                     </Field>
@@ -830,7 +837,10 @@ const LandBirthdayService = () => {
                                     Description <span className="text-white">*</span>
                                 </FieldLabel>
                                 <FieldContent>
-                                    <BasicRichEditor name="packages.prince.description" />
+                                    <BasicRichEditor
+                                        name="packages.prince.description"
+                                        value={packageDescriptionValue ?? ""}
+                                    />
                                     <FieldError errors={[form.formState.errors.packages?.prince?.description]} />
                                 </FieldContent>
                             </Field>

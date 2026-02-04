@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, FormProvider, useFieldArray, useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -111,6 +111,10 @@ const AboutAbout = () => {
     const { data, get, update, getLoading, updateLoading } = useAboutStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
+    const currentData = data?.[language];
+    const currentSection = currentData?.about;
+    const hasInitialized = useRef(false);
+    const isReady = !getLoading && currentData !== undefined && currentSection !== undefined;
     const aboutForm = useForm<AboutSectionFormValues>({
         defaultValues: {
             description: "",
@@ -119,6 +123,8 @@ const AboutAbout = () => {
         resolver: zodResolver(AboutSectionZodSchema),
         mode: "onChange",
     });
+    const descriptionValue = useWatch({ control: aboutForm.control, name: "description" });
+    const cardsValue = useWatch({ control: aboutForm.control, name: "cards" });
 
     const cardFields = useFieldArray({
         control: aboutForm.control,
@@ -126,31 +132,42 @@ const AboutAbout = () => {
     });
 
     useEffect(() => {
-        void get();
-    }, [get, language]);
+        hasInitialized.current = false;
+        aboutForm.reset({ description: "", cards: [defaultCard] });
+        aboutForm.clearErrors();
+        void get("about");
+    }, [get, language, aboutForm]);
 
     useEffect(() => {
-        if (!data?.about) {
+        if (hasInitialized.current) {
+            return;
+        }
+        if (currentSection === undefined) {
+            return;
+        }
+        if (!currentSection) {
             aboutForm.reset({ description: "", cards: [defaultCard] });
+            hasInitialized.current = true;
             return;
         }
         aboutForm.reset({
-            description: data.about.description ?? "",
-            cards: data.about.cards?.length
-                ? data.about.cards.map((card) => ({
+            description: currentSection.description ?? "",
+            cards: currentSection.cards?.length
+                ? currentSection.cards.map((card) => ({
                     iconFile: undefined,
                     title: card.title ?? "",
                     description: card.description ?? "",
                 }))
                 : [defaultCard],
         });
-    }, [data, aboutForm]);
+        hasInitialized.current = true;
+    }, [currentSection, aboutForm]);
 
     const onSubmit = async (formData: AboutSectionFormValues) => {
-        await update({ about: formData });
+        await update("about", formData);
     };
 
-    if (getLoading) {
+    if (getLoading || !isReady) {
         return (
             <div className={cn("space-y-4", isRtl && "home-rtl")}>
                 <CommonLanguageSwitcherCheckbox />
@@ -182,7 +199,7 @@ const AboutAbout = () => {
                         Description <span className="text-white">*</span>
                     </FieldLabel>
                     <FieldContent>
-                        <BasicRichEditor name="description" />
+                        <BasicRichEditor name="description" value={descriptionValue ?? ""} />
                         <FieldError errors={[aboutForm.formState.errors.description]} />
                     </FieldContent>
                 </Field>
@@ -210,7 +227,7 @@ const AboutAbout = () => {
                                             control={aboutForm.control}
                                             name={`cards.${index}.iconFile`}
                                             inputId={`about-icon-${index}`}
-                                            existingUrl={data?.about?.cards?.[index]?.icon?.url}
+                                            existingUrl={currentSection?.cards?.[index]?.icon?.url}
                                         />
                                         <FieldError errors={[aboutForm.formState.errors.cards?.[index]?.iconFile]} />
                                     </FieldContent>
@@ -233,10 +250,13 @@ const AboutAbout = () => {
                                     <FieldLabel htmlFor={`about-description-${index}`} className="text-white/80">
                                         Description <span className="text-white">*</span>
                                     </FieldLabel>
-                                <FieldContent>
-                                    <BasicRichEditor name={`cards.${index}.description`} />
-                                    <FieldError errors={[aboutForm.formState.errors.cards?.[index]?.description]} />
-                                </FieldContent>
+                                    <FieldContent>
+                                        <BasicRichEditor
+                                            name={`cards.${index}.description`}
+                                            value={cardsValue?.[index]?.description ?? ""}
+                                        />
+                                        <FieldError errors={[aboutForm.formState.errors.cards?.[index]?.description]} />
+                                    </FieldContent>
                                 </Field>
                             </FieldGroup>
                         </div>

@@ -118,6 +118,7 @@ export const useLandServicesMembershipStore = create<LandServicesMembershipState
             };
             const response = await fetch(buildLandUrl("/api/v1/land/services/membership", language), {
                 method: "PATCH",
+                cache: "no-store",
                 headers,
                 body: JSON.stringify(normalizedPayload),
             });

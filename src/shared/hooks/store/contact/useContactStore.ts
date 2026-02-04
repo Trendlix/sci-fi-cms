@@ -41,6 +41,7 @@ export const useContactStore = create<ContactState>((set) => ({
             };
             const response = await fetch(buildContactUrl("/api/v1/contact", language), {
                 method: "PATCH",
+                cache: "no-store",
                 headers,
                 body: JSON.stringify(payload),
             });

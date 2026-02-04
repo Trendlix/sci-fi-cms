@@ -43,6 +43,7 @@ export const useStudioHeroStore = create<StudioHeroState>((set) => ({
             };
             const response = await fetch(buildStudioUrl("/api/v1/studio/hero", language), {
                 method: "PATCH",
+                cache: "no-store",
                 headers,
                 body: JSON.stringify(payload),
             });

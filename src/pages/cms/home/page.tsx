@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useForm } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeHeroStore } from "@/shared/hooks/store/home/useHomeHeroStore";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
@@ -23,6 +23,7 @@ const HeroPage = () => {
     const { data, get, update, getLoading, updateLoading } = useHomeHeroStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
+    const hasInitialized = useRef(false);
     const heroForm = useForm<HeroFormValues>({
         defaultValues: {
             title: ["", "", "", "", "", ""],
@@ -33,15 +34,17 @@ const HeroPage = () => {
     })
 
     useEffect(() => {
+        hasInitialized.current = false;
         void get();
     }, [get, language]);
 
     useEffect(() => {
-        if (!data) return;
+        if (!data || hasInitialized.current) return;
         heroForm.reset({
             title: data.title?.length === 6 ? data.title : ["", "", "", "", "", ""],
             description: data.description ?? "",
         });
+        hasInitialized.current = true;
     }, [data, heroForm]);
 
     const onSubmit = async (formData: HeroFormValues) => {

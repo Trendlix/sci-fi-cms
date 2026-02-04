@@ -99,6 +99,7 @@ export const useStudioAboutStore = create<StudioAboutState>((set, get) => ({
             };
             const response = await fetch(buildStudioUrl("/api/v1/studio/about", language), {
                 method: "PATCH",
+                cache: "no-store",
                 headers,
                 body: JSON.stringify(normalized),
             });

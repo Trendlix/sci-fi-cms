@@ -108,6 +108,7 @@ export const useLandFloorsStore = create<LandFloorsState>((set, get) => ({
             };
             const response = await fetch(buildLandUrl("/api/v1/land/floors", language), {
                 method: "PATCH",
+                cache: "no-store",
                 headers,
                 body: JSON.stringify(normalized),
             });

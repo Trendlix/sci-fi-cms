@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useFieldArray, useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -32,8 +32,10 @@ const fileSchema = z.object({
     }
 });
 
+const optionalPartnersDescription = z.union([z.string().trim().min(10, "Description must be at least 10 characters"), z.literal("")]).optional();
+
 export const StudioPartnersZodSchema = z.object({
-    description: z.string().min(10, "Description is required"),
+    description: optionalPartnersDescription,
     files: z.array(fileSchema).min(1),
 });
 
@@ -133,6 +135,7 @@ const StudioPartners = () => {
     const isRtl = language === "ar";
     const openPreview = usePreviewModalStore((state) => state.open);
     const currentData = data?.[language] ?? null;
+    const hasInitialized = useRef(false);
     const partnersForm = useForm<StudioPartnersFormValues>({
         defaultValues: {
             description: "",
@@ -149,26 +152,31 @@ const StudioPartners = () => {
     const watchedFiles = useWatch({ control: partnersForm.control, name: "files" }) ?? [];
 
     useEffect(() => {
+        hasInitialized.current = false;
         void get();
     }, [get, language]);
 
     useEffect(() => {
-        if (!currentData?.files?.length) {
-            partnersForm.reset({ description: "", files: [] });
+        if (currentData === null || hasInitialized.current) {
             return;
         }
-        partnersForm.reset({
-            description: currentData.description ?? "",
-            files: currentData.files.map((file) => ({
-                file: undefined,
-                existing: file,
-            })),
-        });
+        if (!currentData.files?.length) {
+            partnersForm.reset({ description: "", files: [] });
+        } else {
+            partnersForm.reset({
+                description: currentData.description ?? "",
+                files: currentData.files.map((file) => ({
+                    file: undefined,
+                    existing: file,
+                })),
+            });
+        }
+        hasInitialized.current = true;
     }, [currentData, partnersForm]);
 
     const onSubmit = async (formData: StudioPartnersFormValues) => {
         await update({
-            description: formData.description,
+            description: formData.description?.trim() ?? "",
             files: formData.files.map((item) => ({
                 file: item.file as File | undefined,
                 existing: item.existing,
@@ -204,7 +212,7 @@ const StudioPartners = () => {
                 </div>
                 <Field>
                     <FieldLabel htmlFor="studio-partners-description" className="text-white/80">
-                        Description <span className="text-white">*</span>
+                        Description <span className="text-white/70">(optional)</span>
                     </FieldLabel>
                     <FieldContent>
                         <Textarea

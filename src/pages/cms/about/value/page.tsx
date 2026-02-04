@@ -3,10 +3,10 @@ import { Input } from "@/components/ui/input";
 import BasicRichEditor from "@/components/tiptap/BasicRichEditor";
 import { Button } from "@/components/ui/button";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FormProvider, useFieldArray, useForm } from "react-hook-form";
+import { FormProvider, useFieldArray, useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,12 +14,12 @@ import { useAboutStore } from "@/shared/hooks/store/about/useAboutStore";
 
 const valueCardSchema = z.object({
     icon: z.string().min(1, "Icon is required"),
-    title: z.string().min(3, "Title is required").max(20),
-    description: z.string().min(10, "Description is required").max(100),
+    title: z.string().min(3, "Title is required").max(500),
+    description: z.string().min(10, "Description is required").max(500),
 });
 
 export const AboutValueZodSchema = z.object({
-    description: z.string().min(10, "Description is required").max(100),
+    description: z.string().min(10, "Description is required").max(500),
     cards: z.array(valueCardSchema).min(1),
 });
 
@@ -35,6 +35,10 @@ const AboutValue = () => {
     const { data, get, update, getLoading, updateLoading } = useAboutStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
+    const currentData = data?.[language];
+    const currentSection = currentData?.value;
+    const hasInitialized = useRef(false);
+    const isReady = !getLoading && currentData !== undefined && currentSection !== undefined;
     const valueForm = useForm<AboutValueFormValues>({
         defaultValues: {
             description: "",
@@ -43,6 +47,8 @@ const AboutValue = () => {
         resolver: zodResolver(AboutValueZodSchema),
         mode: "onChange",
     });
+    const descriptionValue = useWatch({ control: valueForm.control, name: "description" });
+    const cardsValue = useWatch({ control: valueForm.control, name: "cards" });
 
     const cardFields = useFieldArray({
         control: valueForm.control,
@@ -50,31 +56,42 @@ const AboutValue = () => {
     });
 
     useEffect(() => {
-        void get();
-    }, [get, language]);
+        hasInitialized.current = false;
+        valueForm.reset({ description: "", cards: [defaultCard] });
+        valueForm.clearErrors();
+        void get("value");
+    }, [get, language, valueForm]);
 
     useEffect(() => {
-        if (!data?.value) {
+        if (hasInitialized.current) {
+            return;
+        }
+        if (currentSection === undefined) {
+            return;
+        }
+        if (!currentSection) {
             valueForm.reset({ description: "", cards: [defaultCard] });
+            hasInitialized.current = true;
             return;
         }
         valueForm.reset({
-            description: data.value.description ?? "",
-            cards: data.value.cards?.length
-                ? data.value.cards.map((card) => ({
+            description: currentSection.description ?? "",
+            cards: currentSection.cards?.length
+                ? currentSection.cards.map((card) => ({
                     icon: card.icon ?? "",
                     title: card.title ?? "",
                     description: card.description ?? "",
                 }))
                 : [defaultCard],
         });
-    }, [data, valueForm]);
+        hasInitialized.current = true;
+    }, [currentSection, valueForm]);
 
     const onSubmit = async (formData: AboutValueFormValues) => {
-        await update({ value: formData });
+        await update("value", formData);
     };
 
-    if (getLoading) {
+    if (getLoading || !isReady) {
         return (
             <div className={cn("space-y-4", isRtl && "home-rtl")}>
                 <CommonLanguageSwitcherCheckbox />
@@ -106,7 +123,7 @@ const AboutValue = () => {
                         Description <span className="text-white">*</span>
                     </FieldLabel>
                     <FieldContent>
-                        <BasicRichEditor name="description" />
+                        <BasicRichEditor name="description" value={descriptionValue ?? ""} />
                         <FieldError errors={[valueForm.formState.errors.description]} />
                     </FieldContent>
                 </Field>
@@ -157,10 +174,13 @@ const AboutValue = () => {
                                     <FieldLabel htmlFor={`value-description-${index}`} className="text-white/80">
                                         Description <span className="text-white">*</span>
                                     </FieldLabel>
-                                <FieldContent>
-                                    <BasicRichEditor name={`cards.${index}.description`} />
-                                    <FieldError errors={[valueForm.formState.errors.cards?.[index]?.description]} />
-                                </FieldContent>
+                                    <FieldContent>
+                                        <BasicRichEditor
+                                            name={`cards.${index}.description`}
+                                            value={cardsValue?.[index]?.description ?? ""}
+                                        />
+                                        <FieldError errors={[valueForm.formState.errors.cards?.[index]?.description]} />
+                                    </FieldContent>
                                 </Field>
                             </FieldGroup>
                         </div>

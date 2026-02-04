@@ -29,7 +29,9 @@ export const useHomeTestimonialsStore = create<TestimonialsState>((set, get) => 
         const { language } = useHomeLanguageStore.getState();
         set({ getLoading: true });
         try {
-            const response = await fetch(buildHomeUrl("/api/v1/home/testimonials", language));
+            const response = await fetch(buildHomeUrl("/api/v1/home/testimonials", language), {
+                cache: "no-store",
+            });
             const payload = await parseApiResponse<TestimonialPayload[]>(response, { showToast: false });
             set({ data: payload.data ?? null });
             return payload.data ?? null;
@@ -73,6 +75,7 @@ export const useHomeTestimonialsStore = create<TestimonialsState>((set, get) => 
 
             const response = await fetch(buildHomeUrl("/api/v1/home/testimonials", language), {
                 method: "PATCH",
+                cache: "no-store",
                 headers: {
                     "Content-Type": "application/json",
                     ...getAuthHeaders(),

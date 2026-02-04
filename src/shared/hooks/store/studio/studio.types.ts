@@ -24,7 +24,7 @@ export type StudioAboutPayload = {
 };
 
 export type StudioPartnersPayload = {
-    description: string;
+    description?: string;
     files: StudioFile[];
 };
 

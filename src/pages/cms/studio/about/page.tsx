@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, FormProvider, useFieldArray, useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -124,6 +124,7 @@ const StudioAbout = () => {
     const isRtl = language === "ar";
     const openPreview = usePreviewModalStore((state) => state.open);
     const currentData = data?.[language] ?? null;
+    const hasInitialized = useRef(false);
     const aboutForm = useForm<StudioAboutFormValues>({
         defaultValues: {
             description: "",
@@ -132,6 +133,7 @@ const StudioAbout = () => {
         resolver: zodResolver(StudioAboutZodSchema),
         mode: "onChange",
     });
+    const cardsValue = useWatch({ control: aboutForm.control, name: "cards" });
 
     const cardFields = useFieldArray({
         control: aboutForm.control,
@@ -139,24 +141,29 @@ const StudioAbout = () => {
     });
 
     useEffect(() => {
+        hasInitialized.current = false;
         void get();
     }, [get, language]);
 
     useEffect(() => {
-        if (!currentData?.cards?.length) {
-            aboutForm.reset({ description: "", cards: [defaultCard] });
+        if (currentData === null || hasInitialized.current) {
             return;
         }
-        aboutForm.reset({
-            description: currentData.description ?? "",
-            cards: currentData.cards.map((card) => ({
-                tag: card.tag ?? "",
-                icon: card.icon ?? "",
-                title: card.title ?? "",
-                description: card.description ?? "",
-                fileFile: undefined,
-            })),
-        });
+        if (!currentData.cards?.length) {
+            aboutForm.reset({ description: "", cards: [defaultCard] });
+        } else {
+            aboutForm.reset({
+                description: currentData.description ?? "",
+                cards: currentData.cards.map((card) => ({
+                    tag: card.tag ?? "",
+                    icon: card.icon ?? "",
+                    title: card.title ?? "",
+                    description: card.description ?? "",
+                    fileFile: undefined,
+                })),
+            });
+        }
+        hasInitialized.current = true;
     }, [currentData, aboutForm]);
 
     const onSubmit = async (formData: StudioAboutFormValues) => {
@@ -268,10 +275,13 @@ const StudioAbout = () => {
                                     <FieldLabel htmlFor={`studio-about-description-${index}`} className="text-white/80">
                                         Description <span className="text-white">*</span>
                                     </FieldLabel>
-                                <FieldContent>
-                                    <BasicRichEditor name={`cards.${index}.description`} />
-                                    <FieldError errors={[aboutForm.formState.errors.cards?.[index]?.description]} />
-                                </FieldContent>
+                                    <FieldContent>
+                                        <BasicRichEditor
+                                            name={`cards.${index}.description`}
+                                            value={cardsValue?.[index]?.description ?? ""}
+                                        />
+                                        <FieldError errors={[aboutForm.formState.errors.cards?.[index]?.description]} />
+                                    </FieldContent>
                                 </Field>
                                 <Field className="md:col-span-2">
                                     <FieldLabel htmlFor={`studio-about-file-${index}`} className="text-white/80">

@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, FormProvider, useFieldArray, useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -114,6 +114,7 @@ const DiscoverFloors = () => {
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
     const currentData = data?.[language] ?? null;
+    const hasInitialized = useRef(false);
     const discoverForm = useForm<DiscoverFloorsFormValues>({
         defaultValues: {
             description: "",
@@ -129,15 +130,12 @@ const DiscoverFloors = () => {
     });
 
     useEffect(() => {
+        hasInitialized.current = false;
         void get();
     }, [get, language]);
 
     useEffect(() => {
-        if (!currentData) {
-            discoverForm.reset({
-                description: "",
-                cards: Array.from({ length: 6 }).map(() => ({ ...defaultCard })),
-            });
+        if (currentData === null || hasInitialized.current) {
             return;
         }
         discoverForm.reset({
@@ -151,6 +149,7 @@ const DiscoverFloors = () => {
                 }))
                 : Array.from({ length: 6 }).map(() => ({ ...defaultCard })),
         });
+        hasInitialized.current = true;
     }, [currentData, discoverForm]);
 
     const onSubmit = async (formData: DiscoverFloorsFormValues) => {

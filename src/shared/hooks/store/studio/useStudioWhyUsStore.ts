@@ -43,6 +43,7 @@ export const useStudioWhyUsStore = create<StudioWhyUsState>((set) => ({
             };
             const response = await fetch(buildStudioUrl("/api/v1/studio/why-us", language), {
                 method: "PATCH",
+                cache: "no-store",
                 headers,
                 body: JSON.stringify(payload),
             });

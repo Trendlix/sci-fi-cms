@@ -245,6 +245,10 @@ const AboutPreValue = () => {
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
     const openPreview = usePreviewModalStore((state) => state.open);
+    const currentData = data?.[language];
+    const currentSection = currentData?.preValue;
+    const hasInitialized = useRef(false);
+    const isReady = !getLoading && currentData !== undefined && currentSection !== undefined;
     const preValueForm = useForm<AboutPreValueFormValues>({
         defaultValues: {
             title: ["", "", "", "", ""],
@@ -258,11 +262,26 @@ const AboutPreValue = () => {
     });
 
     useEffect(() => {
-        void get();
-    }, [get, language]);
+        hasInitialized.current = false;
+        preValueForm.reset({
+            title: ["", "", "", "", ""],
+            description: "",
+            linkType: "image",
+            linkUrl: "",
+            linkFile: undefined,
+        });
+        preValueForm.clearErrors();
+        void get("preValue");
+    }, [get, language, preValueForm]);
 
     useEffect(() => {
-        if (!data?.preValue) {
+        if (hasInitialized.current) {
+            return;
+        }
+        if (currentSection === undefined) {
+            return;
+        }
+        if (!currentSection) {
             preValueForm.reset({
                 title: ["", "", "", "", ""],
                 description: "",
@@ -270,25 +289,28 @@ const AboutPreValue = () => {
                 linkUrl: "",
                 linkFile: undefined,
             });
+            hasInitialized.current = true;
             return;
         }
-        const previousType = resolveLinkType(data.preValue.file?.contentType, data.preValue.file?.url);
+        const previousType = resolveLinkType(currentSection.file?.contentType, currentSection.file?.url);
         preValueForm.reset({
-            title: data.preValue.title?.length === 5 ? data.preValue.title : ["", "", "", "", ""],
-            description: data.preValue.description ?? "",
+            title: currentSection.title?.length === 5 ? currentSection.title : ["", "", "", "", ""],
+            description: currentSection.description ?? "",
             linkType: previousType,
-            linkUrl: data.preValue.file?.url ?? "",
+            linkUrl: currentSection.file?.url ?? "",
             linkFile: undefined,
         });
-    }, [data, preValueForm]);
+        hasInitialized.current = true;
+    }, [currentSection, preValueForm]);
 
     const onSubmit = async (formData: AboutPreValueFormValues) => {
-        await update({ preValue: formData });
+        await update("preValue", formData);
     };
 
     const linkType = useWatch({ control: preValueForm.control, name: "linkType" });
     const linkFile = useWatch({ control: preValueForm.control, name: "linkFile" });
     const linkUrl = useWatch({ control: preValueForm.control, name: "linkUrl" });
+    const descriptionValue = useWatch({ control: preValueForm.control, name: "description" });
     const linkUrlError = preValueForm.formState.errors.linkUrl;
     const linkFileError = preValueForm.formState.errors.linkFile;
     const savedValuesRef = useRef<Record<LinkTypeValue, { url?: string; file?: File }>>({
@@ -339,7 +361,7 @@ const AboutPreValue = () => {
         }, 0);
     };
 
-    if (getLoading) {
+    if (getLoading || !isReady) {
         return (
             <div className={cn("space-y-4", isRtl && "home-rtl")}>
                 <CommonLanguageSwitcherCheckbox />
@@ -389,7 +411,7 @@ const AboutPreValue = () => {
                         Description <span className="text-white">*</span>
                     </FieldLabel>
                     <FieldContent>
-                        <BasicRichEditor name="description" />
+                        <BasicRichEditor name="description" value={descriptionValue ?? ""} />
                         <FieldError errors={[preValueForm.formState.errors.description]} />
                     </FieldContent>
                 </Field>

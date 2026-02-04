@@ -99,6 +99,7 @@ export const useLandDiscoverFloorsStore = create<LandDiscoverFloorsState>((set, 
             };
             const response = await fetch(buildLandUrl("/api/v1/land/discover-floors", language), {
                 method: "PATCH",
+                cache: "no-store",
                 headers,
                 body: JSON.stringify(normalized),
             });

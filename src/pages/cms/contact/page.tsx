@@ -13,7 +13,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, FormProvider, useFieldArray, useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useContactStore } from "@/shared/hooks/store/contact/useContactStore";
 import type { ContactPayload } from "@/shared/hooks/store/contact/contact.types";
@@ -312,6 +312,7 @@ const ContactPage = () => {
     const { data: contactData, get, update, getLoading, updateLoading } = useContactStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
+    const hasInitialized = useRef(false);
     const contactForm = useForm<ContactFormValues>({
         defaultValues: {
             hero: {
@@ -337,20 +338,12 @@ const ContactPage = () => {
     });
 
     useEffect(() => {
+        hasInitialized.current = false;
         void get();
     }, [get, language]);
 
     useEffect(() => {
-        if (!contactData) {
-            contactForm.reset({
-                hero: {
-                    description: "",
-                },
-                getInTouch: {
-                    description: "",
-                    cards: [defaultCard],
-                },
-            });
+        if (contactData === null || hasInitialized.current) {
             return;
         }
         contactForm.reset({
@@ -367,6 +360,7 @@ const ContactPage = () => {
                     : [defaultCard],
             },
         });
+        hasInitialized.current = true;
     }, [contactData, contactForm]);
 
     const onSubmit = async (formData: ContactFormValues) => {

@@ -3,10 +3,10 @@ import { Input } from "@/components/ui/input";
 import BasicRichEditor from "@/components/tiptap/BasicRichEditor";
 import { Button } from "@/components/ui/button";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FormProvider, useForm } from "react-hook-form";
+import { FormProvider, useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,6 +23,10 @@ const AboutHero = () => {
     const { data, get, update, getLoading, updateLoading } = useAboutStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
+    const currentData = data?.[language];
+    const currentSection = currentData?.hero;
+    const hasInitialized = useRef(false);
+    const isReady = !getLoading && currentData !== undefined && currentSection !== undefined;
     const heroForm = useForm<AboutHeroFormValues>({
         defaultValues: {
             title: ["", "", "", "", "", ""],
@@ -31,30 +35,45 @@ const AboutHero = () => {
         resolver: zodResolver(AboutHeroZodSchema),
         mode: "onChange",
     });
+    const descriptionValue = useWatch({ control: heroForm.control, name: "description" });
 
     useEffect(() => {
-        void get();
-    }, [get, language]);
+        hasInitialized.current = false;
+        heroForm.reset({
+            title: ["", "", "", "", "", ""],
+            description: "",
+        });
+        heroForm.clearErrors();
+        void get("hero");
+    }, [get, language, heroForm]);
 
     useEffect(() => {
-        if (!data?.hero) {
+        if (hasInitialized.current) {
+            return;
+        }
+        if (currentSection === undefined) {
+            return;
+        }
+        if (!currentSection) {
             heroForm.reset({
                 title: ["", "", "", "", "", ""],
                 description: "",
             });
+            hasInitialized.current = true;
             return;
         }
         heroForm.reset({
-            title: data.hero.title?.length === 6 ? data.hero.title : ["", "", "", "", "", ""],
-            description: data.hero.description ?? "",
+            title: currentSection.title?.length === 6 ? currentSection.title : ["", "", "", "", "", ""],
+            description: currentSection.description ?? "",
         });
-    }, [data, heroForm]);
+        hasInitialized.current = true;
+    }, [currentSection, heroForm]);
 
     const onSubmit = async (formData: AboutHeroFormValues) => {
-        await update({ hero: formData });
+        await update("hero", formData);
     };
 
-    if (getLoading) {
+    if (getLoading || !isReady) {
         return (
             <div className={cn("space-y-4", isRtl && "home-rtl")}>
                 <CommonLanguageSwitcherCheckbox />
@@ -104,7 +123,7 @@ const AboutHero = () => {
                         Description <span className="text-white">*</span>
                     </FieldLabel>
                     <FieldContent>
-                        <BasicRichEditor name="description" />
+                        <BasicRichEditor name="description" value={descriptionValue ?? ""} />
                         <FieldError errors={[heroForm.formState.errors.description]} />
                     </FieldContent>
                 </Field>

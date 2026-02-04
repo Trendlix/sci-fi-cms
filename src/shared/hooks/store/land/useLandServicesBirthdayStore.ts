@@ -118,6 +118,7 @@ export const useLandServicesBirthdayStore = create<LandServicesBirthdayState>((s
             };
             const response = await fetch(buildLandUrl("/api/v1/land/services/birthday", language), {
                 method: "PATCH",
+                cache: "no-store",
                 headers,
                 body: JSON.stringify(normalizedPayload),
             });

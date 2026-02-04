@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, FormProvider, useFieldArray, useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -168,11 +168,15 @@ const LandWalkinService = () => {
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
     const currentData = data?.[language] ?? null;
+    const hasInitialized = useRef(false);
     const form = useForm<LandWalkinFormValues>({
         defaultValues: getEmptyWalkinValues(),
         resolver: zodResolver(LandWalkinZodSchema),
         mode: "onChange",
     });
+    const firstCardsValue = useWatch({ control: form.control, name: "firstCards" });
+    const joinerDescriptions = useWatch({ control: form.control, name: "joinerFloor.description" });
+    const geniusDescriptions = useWatch({ control: form.control, name: "geniusFloor.description" });
 
     const firstCards = useFieldArray({
         control: form.control,
@@ -192,12 +196,12 @@ const LandWalkinService = () => {
     });
 
     useEffect(() => {
+        hasInitialized.current = false;
         void get();
     }, [get, language]);
 
     useEffect(() => {
-        if (!currentData) {
-            form.reset(getEmptyWalkinValues());
+        if (currentData === null || hasInitialized.current) {
             return;
         }
         form.reset({
@@ -232,6 +236,7 @@ const LandWalkinService = () => {
                 })),
             },
         });
+        hasInitialized.current = true;
     }, [currentData, form]);
 
     const onSubmit = async (values: LandWalkinFormValues) => {
@@ -322,7 +327,10 @@ const LandWalkinService = () => {
                                         Description <span className="text-white">*</span>
                                     </FieldLabel>
                                     <FieldContent>
-                                        <BasicRichEditor name={`firstCards.${index}.description`} />
+                                        <BasicRichEditor
+                                            name={`firstCards.${index}.description`}
+                                            value={firstCardsValue?.[index]?.description ?? ""}
+                                        />
                                         <FieldError errors={[form.formState.errors.firstCards?.[index]?.description]} />
                                     </FieldContent>
                                 </Field>
@@ -422,7 +430,10 @@ const LandWalkinService = () => {
                                     Description {index + 1} <span className="text-white">*</span>
                                 </FieldLabel>
                                 <FieldContent>
-                                    <BasicRichEditor name={`joinerFloor.description.${index}`} />
+                                    <BasicRichEditor
+                                        name={`joinerFloor.description.${index}`}
+                                        value={joinerDescriptions?.[index] ?? ""}
+                                    />
                                     <FieldError errors={[form.formState.errors.joinerFloor?.description?.[index]]} />
                                 </FieldContent>
                             </Field>
@@ -490,7 +501,10 @@ const LandWalkinService = () => {
                                     Description {index + 1} <span className="text-white">*</span>
                                 </FieldLabel>
                                 <FieldContent>
-                                    <BasicRichEditor name={`geniusFloor.description.${index}`} />
+                                    <BasicRichEditor
+                                        name={`geniusFloor.description.${index}`}
+                                        value={geniusDescriptions?.[index] ?? ""}
+                                    />
                                     <FieldError errors={[form.formState.errors.geniusFloor?.description?.[index]]} />
                                 </FieldContent>
                             </Field>

@@ -3,10 +3,10 @@ import { Input } from "@/components/ui/input";
 import BasicRichEditor from "@/components/tiptap/BasicRichEditor";
 import { Button } from "@/components/ui/button";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FormProvider, useForm } from "react-hook-form";
+import { FormProvider, useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -47,19 +47,22 @@ const LandSchoolNurseryService = () => {
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
     const currentData = data?.[language] ?? null;
+    const hasInitialized = useRef(false);
     const form = useForm<LandSchoolNurseryFormValues>({
         defaultValues: getEmptySchoolNurseryValues(),
         resolver: zodResolver(LandSchoolNurseryZodSchema),
         mode: "onChange",
     });
+    const schoolTripsValue = useWatch({ control: form.control, name: "schoolTrips" });
+    const nurseryValue = useWatch({ control: form.control, name: "nursery" });
 
     useEffect(() => {
+        hasInitialized.current = false;
         void get();
     }, [get, language]);
 
     useEffect(() => {
-        if (!currentData) {
-            form.reset(getEmptySchoolNurseryValues());
+        if (currentData === null || hasInitialized.current) {
             return;
         }
         form.reset({
@@ -80,6 +83,7 @@ const LandSchoolNurseryService = () => {
                 },
             },
         });
+        hasInitialized.current = true;
     }, [currentData, form]);
 
     const onSubmit = async (values: LandSchoolNurseryFormValues) => {
@@ -121,7 +125,9 @@ const LandSchoolNurseryService = () => {
         );
     }
 
-    const renderSection = (key: "schoolTrips" | "nursery", label: string) => (
+    const renderSection = (key: "schoolTrips" | "nursery", label: string) => {
+        const sectionValue = key === "schoolTrips" ? schoolTripsValue : nurseryValue;
+        return (
         <div className="space-y-3 rounded-2xl border border-white/15 bg-white/5 p-4">
             <h2 className="text-lg font-semibold text-white">{label}</h2>
             <FieldGroup className="grid gap-4 md:grid-cols-2">
@@ -130,7 +136,10 @@ const LandSchoolNurseryService = () => {
                         Description <span className="text-white">*</span>
                     </FieldLabel>
                     <FieldContent>
-                        <BasicRichEditor name={`${key}.description`} />
+                        <BasicRichEditor
+                            name={`${key}.description`}
+                            value={sectionValue?.description ?? ""}
+                        />
                         <FieldError errors={[form.formState.errors[key]?.description]} />
                     </FieldContent>
                 </Field>
@@ -167,13 +176,17 @@ const LandSchoolNurseryService = () => {
                         Highlight description <span className="text-white">*</span>
                     </FieldLabel>
                     <FieldContent>
-                        <BasicRichEditor name={`${key}.highlights.description`} />
+                        <BasicRichEditor
+                            name={`${key}.highlights.description`}
+                            value={sectionValue?.highlights?.description ?? ""}
+                        />
                         <FieldError errors={[form.formState.errors[key]?.highlights?.description]} />
                     </FieldContent>
                 </Field>
             </FieldGroup>
         </div>
     );
+    };
 
     return (
         <FormProvider {...form}>

@@ -7,7 +7,7 @@ import { Controller, FormProvider, useFieldArray, useForm, useWatch } from "reac
 import * as z from "zod";
 import { cn } from "@/lib/utils";
 import { Upload } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeTestimonialsStore } from "@/shared/hooks/store/home/useHomeTestimonialsStore";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
@@ -118,6 +118,7 @@ const TestimonialsPage = () => {
     const { data: testimonialsData, get, update, getLoading, updateLoading } = useHomeTestimonialsStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
+    const hasInitialized = useRef(false);
     const testimonialsForm = useForm<TestimonialsFormValues>({
         defaultValues: {
             testimonials: defaultTestimonials,
@@ -132,23 +133,28 @@ const TestimonialsPage = () => {
     })
 
     useEffect(() => {
+        hasInitialized.current = false;
         void get();
     }, [get, language]);
 
     useEffect(() => {
-        if (!testimonialsData || testimonialsData.length === 0) {
-            testimonialsForm.reset({ testimonials: defaultTestimonials });
+        if (testimonialsData === null || hasInitialized.current) {
             return;
         }
-        testimonialsForm.reset({
-            testimonials: testimonialsData.map((item) => ({
-                name: item.name ?? "",
-                title: item.title ?? "",
-                message: item.message ?? "",
-                rating: item.rating ?? 5,
-                avatarFile: undefined,
-            })),
-        });
+        if (testimonialsData.length === 0) {
+            testimonialsForm.reset({ testimonials: defaultTestimonials });
+        } else {
+            testimonialsForm.reset({
+                testimonials: testimonialsData.map((item) => ({
+                    name: item.name ?? "",
+                    title: item.title ?? "",
+                    message: item.message ?? "",
+                    rating: item.rating ?? 5,
+                    avatarFile: undefined,
+                })),
+            });
+        }
+        hasInitialized.current = true;
     }, [testimonialsData, testimonialsForm]);
 
     const onSubmit = async (formData: TestimonialsFormValues) => {

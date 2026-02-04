@@ -30,7 +30,9 @@ export const useHomeHorizontalStore = create<HorizontalState>((set, get) => ({
         const { language } = useHomeLanguageStore.getState();
         set({ getLoading: true });
         try {
-            const response = await fetch(buildHomeUrl("/api/v1/home/horizontal", language));
+            const response = await fetch(buildHomeUrl("/api/v1/home/horizontal", language), {
+                cache: "no-store",
+            });
             const payload = await parseApiResponse<HorizontalSection[]>(response, { showToast: false });
             set({ data: payload.data ?? null });
             return payload.data ?? null;
@@ -108,6 +110,7 @@ export const useHomeHorizontalStore = create<HorizontalState>((set, get) => ({
 
             const response = await fetch(buildHomeUrl("/api/v1/home/horizontal", language), {
                 method: "PATCH",
+                cache: "no-store",
                 headers: {
                     "Content-Type": "application/json",
                     ...getAuthHeaders(),

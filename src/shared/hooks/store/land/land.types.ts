@@ -8,6 +8,7 @@ export type LandFile = {
 export type LandHeroPayload = {
     title: string[];
     description: string;
+    file?: LandFile;
 };
 
 export type LandDiscoverCardPayload = {

@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useFormContext } from 'react-hook-form';
-import RichTextEditor from 'reactjs-tiptap-editor';
-import { BaseKit } from 'reactjs-tiptap-editor';
+import RichTextEditor, { BaseKit } from 'reactjs-tiptap-editor';
+import type { Editor as TiptapEditor } from '@tiptap/core';
 import Editor from '@monaco-editor/react';
 
 import { Bold } from 'reactjs-tiptap-editor/bold';
@@ -120,10 +120,24 @@ const RichEditor = ({ name = 'content' }: { name: string }) => {
     const { register, setValue, watch } = useFormContext();
     const [isCode, setIsCode] = useState(false);
     const content = watch(name);
+    const editorRef = useRef<{ editor: TiptapEditor | null }>(null);
 
     useEffect(() => {
         register(name);
     }, [register, name]);
+
+    useEffect(() => {
+        const nextContent = content ?? "";
+        const editor = editorRef.current?.editor;
+        if (!editor) {
+            return;
+        }
+        const current = editor.getHTML();
+        if (current === nextContent) {
+            return;
+        }
+        editor.commands.setContent(nextContent, false);
+    }, [content]);
 
     const onChangeContent = (value: string) => {
         setValue(name, value, { shouldValidate: true, shouldDirty: true });
@@ -147,9 +161,10 @@ const RichEditor = ({ name = 'content' }: { name: string }) => {
                 />
             ) : (
                 <RichTextEditor
+                    ref={editorRef}
                     output="html"
                     contentClass="min-h-[270px]"
-                    content={content}
+                    content={content ?? ""}
                     onChangeContent={onChangeContent}
                     extensions={extensions}
                     dark={true}

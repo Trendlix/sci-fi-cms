@@ -20,7 +20,9 @@ export const useHomeHeroStore = create<HeroState>((set) => ({
         const { language } = useHomeLanguageStore.getState();
         set({ getLoading: true });
         try {
-            const response = await fetch(buildHomeUrl("/api/v1/home/hero", language));
+            const response = await fetch(buildHomeUrl("/api/v1/home/hero", language), {
+                cache: "no-store",
+            });
             const payload = await parseApiResponse<HeroPayload>(response, { showToast: false });
             set({ data: payload.data ?? null });
             return payload.data ?? null;

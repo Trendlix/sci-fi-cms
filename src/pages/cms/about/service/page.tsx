@@ -3,24 +3,24 @@ import { Input } from "@/components/ui/input";
 import BasicRichEditor from "@/components/tiptap/BasicRichEditor";
 import { Button } from "@/components/ui/button";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FormProvider, useFieldArray, useForm } from "react-hook-form";
+import { FormProvider, useFieldArray, useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAboutStore } from "@/shared/hooks/store/about/useAboutStore";
 
 const serviceCardSchema = z.object({
-    tag: z.string().min(3, "Tag is required").max(20),
+    tag: z.string().min(3, "Tag is required").max(500),
     icon: z.string().min(1, "Icon is required"),
-    title: z.string().min(3, "Title is required").max(20),
-    description: z.string().min(10, "Description is required").max(100),
+    title: z.string().min(3, "Title is required").max(500),
+    description: z.string().min(10, "Description is required").max(500),
 });
 
 export const AboutServiceZodSchema = z.object({
-    description: z.string().min(10, "Description is required").max(100),
+    description: z.string().min(10, "Description is required").max(500),
     cards: z.array(serviceCardSchema).min(1),
 });
 
@@ -37,6 +37,10 @@ const AboutService = () => {
     const { data, get, update, getLoading, updateLoading } = useAboutStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
+    const currentData = data?.[language];
+    const currentSection = currentData?.service;
+    const hasInitialized = useRef(false);
+    const isReady = !getLoading && currentData !== undefined && currentSection !== undefined;
     const serviceForm = useForm<AboutServiceFormValues>({
         defaultValues: {
             description: "",
@@ -45,6 +49,32 @@ const AboutService = () => {
         resolver: zodResolver(AboutServiceZodSchema),
         mode: "onChange",
     });
+    const descriptionValue = useWatch({ control: serviceForm.control, name: "description" });
+    const cardsValue = useWatch({ control: serviceForm.control, name: "cards" });
+
+    const errorSummary = useMemo(() => {
+        const errors = serviceForm.formState.errors;
+        const output: string[] = [];
+
+        const collect = (node: unknown, path: string[]) => {
+            if (!node || typeof node !== "object") {
+                return;
+            }
+            const maybeMessage = (node as { message?: string }).message;
+            if (typeof maybeMessage === "string" && maybeMessage.trim().length > 0) {
+                output.push(`${path.join(".")}: ${maybeMessage}`);
+            }
+            Object.entries(node as Record<string, unknown>).forEach(([key, value]) => {
+                if (key === "message") {
+                    return;
+                }
+                collect(value, [...path, key]);
+            });
+        };
+
+        collect(errors, ["form"]);
+        return Array.from(new Set(output));
+    }, [serviceForm.formState.errors]);
 
     const cardFields = useFieldArray({
         control: serviceForm.control,
@@ -52,18 +82,29 @@ const AboutService = () => {
     });
 
     useEffect(() => {
-        void get();
-    }, [get, language]);
+        hasInitialized.current = false;
+        serviceForm.reset({ description: "", cards: [defaultCard] });
+        serviceForm.clearErrors();
+        void get("service");
+    }, [get, language, serviceForm]);
 
     useEffect(() => {
-        if (!data?.service) {
+        if (hasInitialized.current) {
+            return;
+        }
+        if (currentSection === undefined) {
+            return;
+        }
+        if (!currentSection) {
             serviceForm.reset({ description: "", cards: [defaultCard] });
+            serviceForm.clearErrors();
+            hasInitialized.current = true;
             return;
         }
         serviceForm.reset({
-            description: data.service.description ?? "",
-            cards: data.service.cards?.length
-                ? data.service.cards.map((card) => ({
+            description: currentSection.description ?? "",
+            cards: currentSection.cards?.length
+                ? currentSection.cards.map((card) => ({
                     tag: card.tag ?? "",
                     icon: card.icon ?? "",
                     title: card.title ?? "",
@@ -71,13 +112,15 @@ const AboutService = () => {
                 }))
                 : [defaultCard],
         });
-    }, [data, serviceForm]);
+        serviceForm.clearErrors();
+        hasInitialized.current = true;
+    }, [currentSection, serviceForm]);
 
     const onSubmit = async (formData: AboutServiceFormValues) => {
-        await update({ service: formData });
+        await update("service", formData);
     };
 
-    if (getLoading) {
+    if (getLoading || !isReady) {
         return (
             <div className={cn("space-y-4", isRtl && "home-rtl")}>
                 <CommonLanguageSwitcherCheckbox />
@@ -109,7 +152,13 @@ const AboutService = () => {
                         Description <span className="text-white">*</span>
                     </FieldLabel>
                     <FieldContent>
-                        <BasicRichEditor name="description" />
+                        <BasicRichEditor
+                            name="description"
+                            value={descriptionValue ?? ""}
+                            onChange={(value) =>
+                                serviceForm.setValue("description", value ?? "", { shouldValidate: true })
+                            }
+                        />
                         <FieldError errors={[serviceForm.formState.errors.description]} />
                     </FieldContent>
                 </Field>
@@ -120,7 +169,7 @@ const AboutService = () => {
                                 <h2 className="text-lg font-semibold text-white">Card {index + 1}</h2>
                                 <Button
                                     type="button"
-                                    className="bg-white/10 text-white hover:bg-white/20"
+                                    className="bg-white/10 text-white hover:bg-white/500"
                                     disabled={cardFields.fields.length <= 1}
                                     onClick={() => cardFields.remove(index)}
                                 >
@@ -136,7 +185,7 @@ const AboutService = () => {
                                         <Input
                                             id={`service-tag-${index}`}
                                             placeholder="Tag"
-                                            className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                            className="border-white/500 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
                                             {...serviceForm.register(`cards.${index}.tag`)}
                                         />
                                         <FieldError errors={[serviceForm.formState.errors.cards?.[index]?.tag]} />
@@ -150,7 +199,7 @@ const AboutService = () => {
                                         <Input
                                             id={`service-icon-${index}`}
                                             placeholder="Icon name"
-                                            className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                            className="border-white/500 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
                                             {...serviceForm.register(`cards.${index}.icon`)}
                                         />
                                         <FieldError errors={[serviceForm.formState.errors.cards?.[index]?.icon]} />
@@ -164,7 +213,7 @@ const AboutService = () => {
                                         <Input
                                             id={`service-title-${index}`}
                                             placeholder="Title"
-                                            className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                            className="border-white/500 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
                                             {...serviceForm.register(`cards.${index}.title`)}
                                         />
                                         <FieldError errors={[serviceForm.formState.errors.cards?.[index]?.title]} />
@@ -174,10 +223,16 @@ const AboutService = () => {
                                     <FieldLabel htmlFor={`service-description-${index}`} className="text-white/80">
                                         Description <span className="text-white">*</span>
                                     </FieldLabel>
-                                <FieldContent>
-                                    <BasicRichEditor name={`cards.${index}.description`} />
-                                    <FieldError errors={[serviceForm.formState.errors.cards?.[index]?.description]} />
-                                </FieldContent>
+                                    <FieldContent>
+                                        <BasicRichEditor
+                                            name={`cards.${index}.description`}
+                                            value={cardsValue?.[index]?.description ?? ""}
+                                            onChange={(value) =>
+                                                serviceForm.setValue(`cards.${index}.description`, value ?? "", { shouldValidate: true })
+                                            }
+                                        />
+                                        <FieldError errors={[serviceForm.formState.errors.cards?.[index]?.description]} />
+                                    </FieldContent>
                                 </Field>
                             </FieldGroup>
                         </div>
@@ -185,11 +240,16 @@ const AboutService = () => {
                 </div>
                 <Button
                     type="button"
-                    className="bg-white/10 text-white hover:bg-white/20"
+                    className="bg-white/10 text-white hover:bg-white/500"
                     onClick={() => cardFields.append(defaultCard)}
                 >
                     Add card
                 </Button>
+                {errorSummary.length > 0 && (
+                    <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                        Issues: {errorSummary.join(" • ")}
+                    </div>
+                )}
                 <Button
                     type="submit"
                     className="w-full bg-white/90 text-black hover:bg-white"

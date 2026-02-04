@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useForm } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeAboutStore } from "@/shared/hooks/store/home/useHomeAboutStore";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
@@ -21,6 +21,7 @@ const AboutPage = () => {
     const { data, get, update, getLoading, updateLoading } = useHomeAboutStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
+    const hasInitialized = useRef(false);
     const aboutForm = useForm<AboutFormValues>({
         defaultValues: {
             description: ["", "", "", "", ""],
@@ -30,14 +31,16 @@ const AboutPage = () => {
     })
 
     useEffect(() => {
+        hasInitialized.current = false;
         void get();
     }, [get, language]);
 
     useEffect(() => {
-        if (!data) return;
+        if (!data || hasInitialized.current) return;
         aboutForm.reset({
             description: data.description?.length === 5 ? data.description : ["", "", "", "", ""],
         });
+        hasInitialized.current = true;
     }, [data, aboutForm]);
 
     const onSubmit = async (formData: AboutFormValues) => {

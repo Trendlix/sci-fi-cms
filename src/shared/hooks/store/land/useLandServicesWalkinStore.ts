@@ -121,6 +121,7 @@ export const useLandServicesWalkinStore = create<LandServicesWalkinState>((set, 
             };
             const response = await fetch(buildLandUrl("/api/v1/land/services/walkin", language), {
                 method: "PATCH",
+                cache: "no-store",
                 headers,
                 body: JSON.stringify(normalized),
             });

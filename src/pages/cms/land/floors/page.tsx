@@ -366,6 +366,7 @@ const LandFloors = () => {
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
     const currentData = data?.[language] ?? null;
+    const hasInitialized = useRef(false);
     const floorsForm = useForm<FloorsFormValues>({
         defaultValues: {
             floors: [defaultFloor],
@@ -380,24 +381,29 @@ const LandFloors = () => {
     });
 
     useEffect(() => {
+        hasInitialized.current = false;
         void get();
     }, [get, language]);
 
     useEffect(() => {
-        if (!currentData?.length) {
-            floorsForm.reset({ floors: [defaultFloor] });
+        if (currentData === null || hasInitialized.current) {
             return;
         }
-        floorsForm.reset({
-            floors: currentData.map((floor) => ({
-                title: floor.title ?? "",
-                description: floor.description ?? "",
-                linkType: floor.file?.contentType === "video" ? "video" : floor.file?.contentType === "link" ? "link" : "image",
-                linkUrl: floor.file?.url ?? "",
-                fileFile: undefined,
-                existing: floor.file,
-            })),
-        });
+        if (!currentData.length) {
+            floorsForm.reset({ floors: [defaultFloor] });
+        } else {
+            floorsForm.reset({
+                floors: currentData.map((floor) => ({
+                    title: floor.title ?? "",
+                    description: floor.description ?? "",
+                    linkType: floor.file?.contentType === "video" ? "video" : floor.file?.contentType === "link" ? "link" : "image",
+                    linkUrl: floor.file?.url ?? "",
+                    fileFile: undefined,
+                    existing: floor.file,
+                })),
+            });
+        }
+        hasInitialized.current = true;
     }, [currentData, floorsForm]);
 
     const onSubmit = async (formData: FloorsFormValues) => {
