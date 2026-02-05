@@ -416,7 +416,7 @@ const ContactPage = () => {
                         watchedCards={watchedCards}
                     />
                     <SaveButton
-                        isDisabled={getLoading || updateLoading || !contactForm.formState.isValid}
+                        isDisabled={getLoading || updateLoading}
                         isLoading={updateLoading}
                     />
                 </form>

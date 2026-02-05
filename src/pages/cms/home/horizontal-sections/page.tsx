@@ -660,7 +660,7 @@ const HorizontalSectionsPage = () => {
                         <Button
                             type="submit"
                             className="bg-white/90 text-black hover:bg-white flex-4"
-                            disabled={getLoading || updateLoading || !sectionsForm.formState.isValid}
+                            disabled={getLoading || updateLoading}
                         >
                             {getLoading || updateLoading ? "Saving..." : "Save"}
                         </Button>

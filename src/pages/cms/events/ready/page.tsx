@@ -162,7 +162,7 @@ const EventsReady = () => {
                 <Button
                     type="submit"
                     className="w-full bg-white/90 text-black hover:bg-white"
-                    disabled={getLoading || updateLoading || !readyForm.formState.isValid}
+                    disabled={getLoading || updateLoading}
                 >
                     {updateLoading ? "Saving..." : "Save"}
                 </Button>

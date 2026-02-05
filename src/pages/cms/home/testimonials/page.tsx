@@ -303,7 +303,7 @@ const TestimonialsPage = () => {
                         <Button
                             type="submit"
                             className="flex-4 bg-white/90 text-black hover:bg-white"
-                            disabled={getLoading || updateLoading || !testimonialsForm.formState.isValid}
+                            disabled={getLoading || updateLoading}
                         >
                             {updateLoading ? "Saving..." : "Save"}
                         </Button>

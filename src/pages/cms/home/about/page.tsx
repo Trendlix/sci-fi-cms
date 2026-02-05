@@ -88,6 +88,7 @@ const AboutPage = () => {
                                 </FieldLabel>
                                 <FieldContent>
                                     <Textarea
+                                        required
                                         id={`description-${index}`}
                                         placeholder={`Enter description ${index + 1}`}
                                         className="min-h-24 border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
@@ -101,7 +102,7 @@ const AboutPage = () => {
                     <Button
                         type="submit"
                         className="w-full bg-white/90 text-black hover:bg-white"
-                        disabled={getLoading || updateLoading || !aboutForm.formState.isValid}
+                        disabled={getLoading || updateLoading}
                     >
                         {updateLoading ? "Saving..." : "Save"}
                     </Button>

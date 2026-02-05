@@ -254,7 +254,7 @@ const AboutAbout = () => {
                     <Button
                         type="submit"
                         className="w-full bg-white/90 text-black hover:bg-white"
-                        disabled={getLoading || updateLoading || !aboutForm.formState.isValid}
+                        disabled={getLoading || updateLoading}
                     >
                         {updateLoading ? "Saving..." : "Save"}
                     </Button>

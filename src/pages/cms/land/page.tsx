@@ -13,7 +13,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, FormProvider, useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -62,6 +62,7 @@ const LandHero = () => {
     const { get, update, getLoading, updateLoading } = useLandHeroStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
     const openPreview = usePreviewModalStore((state) => state.open);
     const heroForm = useForm<LandHeroFormValues>({
         defaultValues: {
@@ -77,6 +78,7 @@ const LandHero = () => {
         resolver: zodResolver(LandHeroZodSchema),
         mode: "onChange",
     });
+    const { reset } = heroForm;
     const watchedFile = useWatch({ control: heroForm.control, name: "file" });
     const linkType = watchedFile?.linkType ?? "image";
     const linkUrlError = heroForm.formState.errors.file?.linkUrl;
@@ -95,23 +97,13 @@ const LandHero = () => {
 
     useEffect(() => {
         let isActive = true;
-        heroForm.reset({
-            title: ["", "", "", "", "", ""],
-            description: "",
-            file: {
-                linkType: "image",
-                linkUrl: "",
-                fileFile: undefined,
-                existing: undefined,
-            },
-        });
-        heroForm.clearErrors();
 
         const load = async () => {
+            setIsInitialLoad(true);
             const result = await get().catch(() => null);
             if (!isActive) return;
             if (!result) {
-                heroForm.reset({
+                reset({
                     title: ["", "", "", "", "", ""],
                     description: "",
                     file: {
@@ -121,9 +113,10 @@ const LandHero = () => {
                         existing: undefined,
                     },
                 });
+                setIsInitialLoad(false);
                 return;
             }
-            heroForm.reset({
+            reset({
                 title: result.title?.length === 6 ? result.title : ["", "", "", "", "", ""],
                 description: result.description ?? "",
                 file: {
@@ -133,21 +126,24 @@ const LandHero = () => {
                     existing: result.file,
                 },
             });
+            setIsInitialLoad(false);
         };
 
         void load();
         return () => {
             isActive = false;
         };
-    }, [get, language, heroForm]);
+    }, [get, language, reset]);
 
     const onSubmit = async (formData: LandHeroFormValues) => {
         await update(formData);
     };
 
+    const showLoading = getLoading || isInitialLoad;
+
     return (
         <FormProvider {...heroForm}>
-            {getLoading ? (
+            {showLoading ? (
                 <LoadingSkeleton isRtl={isRtl} />
             ) : (
                 <form onSubmit={heroForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
@@ -322,7 +318,7 @@ const LandHero = () => {
                     <Button
                         type="submit"
                         className="w-full bg-white/90 text-black hover:bg-white"
-                        disabled={getLoading || updateLoading || !heroForm.formState.isValid}
+                        disabled={getLoading || updateLoading}
                     >
                         {updateLoading ? "Saving..." : "Save"}
                     </Button>

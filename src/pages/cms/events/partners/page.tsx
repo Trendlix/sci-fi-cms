@@ -277,7 +277,7 @@ const EventPartners = () => {
                 <Button
                     type="submit"
                     className="w-full bg-white/90 text-black hover:bg-white"
-                    disabled={getLoading || updateLoading || !partnersForm.formState.isValid}
+                    disabled={getLoading || updateLoading}
                 >
                     {updateLoading ? "Saving..." : "Save"}
                 </Button>

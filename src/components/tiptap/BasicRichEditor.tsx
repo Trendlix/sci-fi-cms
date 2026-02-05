@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFormContext } from 'react-hook-form';
 import RichTextEditor from 'reactjs-tiptap-editor';
 import { BaseKit } from 'reactjs-tiptap-editor';
@@ -67,12 +67,15 @@ const BasicRichEditor = ({
     const watchedContent = watch(name);
     const content = value ?? watchedContent;
     const { isDirty } = getFieldState(name, formState);
+    const editorKeyRef = useRef(`basic-editor-${name}`);
     const editorKey = useMemo(() => {
         if (isDirty) {
-            return `basic-editor-dirty-${name}`;
+            return editorKeyRef.current;
         }
         const safeContent = content ?? "";
-        return `basic-editor-clean-${name}-${safeContent.length}-${hashString(safeContent)}`;
+        const nextKey = `basic-editor-clean-${name}-${safeContent.length}-${hashString(safeContent)}`;
+        editorKeyRef.current = nextKey;
+        return nextKey;
     }, [content, isDirty, name]);
 
     useEffect(() => {

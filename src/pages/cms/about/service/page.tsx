@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useFieldArray, useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -49,29 +49,7 @@ const AboutService = () => {
     const descriptionValue = useWatch({ control: serviceForm.control, name: "description" });
     const cardsValue = useWatch({ control: serviceForm.control, name: "cards" });
 
-    const errorSummary = useMemo(() => {
-        const errors = serviceForm.formState.errors;
-        const output: string[] = [];
 
-        const collect = (node: unknown, path: string[]) => {
-            if (!node || typeof node !== "object") {
-                return;
-            }
-            const maybeMessage = (node as { message?: string }).message;
-            if (typeof maybeMessage === "string" && maybeMessage.trim().length > 0) {
-                output.push(`${path.join(".")}: ${maybeMessage}`);
-            }
-            Object.entries(node as Record<string, unknown>).forEach(([key, value]) => {
-                if (key === "message") {
-                    return;
-                }
-                collect(value, [...path, key]);
-            });
-        };
-
-        collect(errors, ["form"]);
-        return Array.from(new Set(output));
-    }, [serviceForm.formState.errors]);
 
     const cardFields = useFieldArray({
         control: serviceForm.control,
@@ -224,15 +202,10 @@ const AboutService = () => {
                     >
                         Add card
                     </Button>
-                    {errorSummary.length > 0 && (
-                        <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
-                            Issues: {errorSummary.join(" • ")}
-                        </div>
-                    )}
                     <Button
                         type="submit"
                         className="w-full bg-white/90 text-black hover:bg-white"
-                        disabled={getLoading || updateLoading || !serviceForm.formState.isValid}
+                        disabled={getLoading || updateLoading}
                     >
                         {updateLoading ? "Saving..." : "Save"}
                     </Button>

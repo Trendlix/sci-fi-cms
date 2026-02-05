@@ -147,35 +147,6 @@ const getEmptyMembershipValues = (): LandMembershipFormValues => ({
     },
 });
 
-const collectErrorMessages = (errors: Record<string, unknown>) => {
-    const result: Array<{ path: string; message: string }> = [];
-    const stack: Array<{ path: string; value: unknown }> = [{ path: "", value: errors }];
-
-    while (stack.length > 0) {
-        const current = stack.pop();
-        if (!current || typeof current.value !== "object") {
-            continue;
-        }
-
-        const record = current.value as Record<string, unknown>;
-        if ("message" in record && typeof record.message === "string") {
-            result.push({
-                path: current.path || "form",
-                message: record.message,
-            });
-        }
-
-        for (const [key, value] of Object.entries(record)) {
-            if (value && typeof value === "object") {
-                const nextPath = current.path ? `${current.path}.${key}` : key;
-                stack.push({ path: nextPath, value });
-            }
-        }
-    }
-
-    return result;
-};
-
 type MembershipFileCardProps = {
     index: number;
     fieldId: string;
@@ -807,24 +778,10 @@ const LandMembershipService = () => {
                     </FieldGroup>
                     {renderYearCard("3")}
                     {renderYearCard("6")}
-                    {!form.formState.isValid ? (
-                        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                            <p className="font-semibold">Fix the highlighted fields:</p>
-                            <ul className="mt-2 space-y-1">
-                                {collectErrorMessages(form.formState.errors as Record<string, unknown>)
-                                    .slice(0, 8)
-                                    .map((item) => (
-                                        <li key={`${item.path}-${item.message}`}>
-                                            <span className="font-medium">{item.path}:</span> {item.message}
-                                        </li>
-                                    ))}
-                            </ul>
-                        </div>
-                    ) : null}
                     <Button
                         type="submit"
                         className="w-full bg-white/90 text-black hover:bg-white"
-                        disabled={getLoading || updateLoading || !form.formState.isValid}
+                        disabled={getLoading || updateLoading}
                     >
                         {updateLoading ? "Saving..." : "Save"}
                     </Button>

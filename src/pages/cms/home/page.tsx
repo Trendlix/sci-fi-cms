@@ -11,6 +11,7 @@ import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitch
 import { useHomeHeroStore } from "@/shared/hooks/store/home/useHomeHeroStore";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
+import clsx from "clsx";
 
 export const HeroZodValidationSchema = z.object({
     title: z.array(z.string().min(1, "Title is required")).length(6),
@@ -121,8 +122,8 @@ const HeroPage = () => {
                     </FieldGroup>
                     <Button
                         type="submit"
-                        className="w-full bg-white/90 text-black hover:bg-white"
-                        disabled={getLoading || updateLoading || !heroForm.formState.isValid}
+                        className={clsx("w-full bg-white/90 text-black hover:bg-white")}
+                        disabled={getLoading || updateLoading}
                     >
                         {updateLoading ? "Saving..." : "Save"}
                     </Button>

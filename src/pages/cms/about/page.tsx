@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -24,6 +24,8 @@ const AboutHero = () => {
     const { get, update, getLoading, updateLoading } = useAboutStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
+
     const heroForm = useForm<AboutHeroFormValues>({
         defaultValues: {
             title: ["", "", "", "", "", ""],
@@ -32,45 +34,52 @@ const AboutHero = () => {
         resolver: zodResolver(AboutHeroZodSchema),
         mode: "onChange",
     });
+
     const descriptionValue = useWatch({ control: heroForm.control, name: "description" });
+    const { reset, clearErrors } = heroForm;
 
     useEffect(() => {
         let isActive = true;
-        heroForm.reset({
+        reset({
             title: ["", "", "", "", "", ""],
             description: "",
         });
-        heroForm.clearErrors();
+        clearErrors();
 
         const load = async () => {
+            setIsInitialLoad(true);
             const result = await get("hero") as AboutPayload["hero"] | null;
             if (!isActive) return;
             if (!result) {
-                heroForm.reset({
+                reset({
                     title: ["", "", "", "", "", ""],
                     description: "",
                 });
+                setIsInitialLoad(false);
                 return;
             }
-            heroForm.reset({
+            reset({
                 title: result.title?.length === 6 ? result.title : ["", "", "", "", "", ""],
                 description: result.description ?? "",
             });
+            setIsInitialLoad(false);
         };
 
         void load();
         return () => {
             isActive = false;
         };
-    }, [get, language, heroForm]);
+    }, [get, language, reset, clearErrors]);
 
     const onSubmit = async (formData: AboutHeroFormValues) => {
         await update("hero", formData);
     };
 
+    const showLoading = getLoading || isInitialLoad;
+
     return (
         <FormProvider {...heroForm}>
-            {getLoading ? (
+            {showLoading ? (
                 <LoadingSkeleton isRtl={isRtl} />
             ) : (
                 <form onSubmit={heroForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
@@ -97,6 +106,7 @@ const AboutHero = () => {
                             </Field>
                         ))}
                     </FieldGroup>
+                    <FieldError errors={[heroForm.formState.errors.title as { message?: string } | undefined]} />
                     <Field>
                         <FieldLabel htmlFor="about-hero-description" className="text-white/80">
                             Description <span className="text-white">*</span>
@@ -109,7 +119,7 @@ const AboutHero = () => {
                     <Button
                         type="submit"
                         className="w-full bg-white/90 text-black hover:bg-white"
-                        disabled={getLoading || updateLoading || !heroForm.formState.isValid}
+                        disabled={getLoading || updateLoading}
                     >
                         {updateLoading ? "Saving..." : "Save"}
                     </Button>
