@@ -16,7 +16,7 @@ import type { Control, FieldErrors, UseFormRegister, UseFormResetField, UseFormS
 import * as z from "zod";
 import { cn } from "@/lib/utils";
 import { Link, Play } from "lucide-react";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeHorizontalStore } from "@/shared/hooks/store/home/useHomeHorizontalStore";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
@@ -292,7 +292,7 @@ const LinkTargetField = ({
                 />
             )}
         </FieldContent>
-    </Field>
+    </Field >
 );
 
 type SectionTitlesProps = {
@@ -547,6 +547,8 @@ const HorizontalSectionsPage = () => {
     const { get, update, getLoading, updateLoading } = useHomeHorizontalStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
+
     const sectionsForm = useForm<HorizontalFormValues>({
         defaultValues: {
             sections: defaultSections,
@@ -560,19 +562,23 @@ const HorizontalSectionsPage = () => {
         name: "sections",
     })
 
+    const { reset, clearErrors } = sectionsForm;
+
     useEffect(() => {
         let isActive = true;
-        sectionsForm.reset({ sections: defaultSections });
-        sectionsForm.clearErrors();
+        reset({ sections: defaultSections });
+        clearErrors();
 
         const load = async () => {
+            setIsInitialLoad(true);
             const result = await get();
             if (!isActive) return;
             if (!result || result.length === 0) {
-                sectionsForm.reset({ sections: defaultSections });
+                reset({ sections: defaultSections });
+                setIsInitialLoad(false);
                 return;
             }
-            sectionsForm.reset({
+            reset({
                 sections: result.map((section) => ({
                     linkType: section.link.type === "external"
                         ? "link"
@@ -586,13 +592,14 @@ const HorizontalSectionsPage = () => {
                     description: (section.description ?? []).map((value) => ({ value })),
                 })),
             });
+            setIsInitialLoad(false);
         };
 
         void load();
         return () => {
             isActive = false;
         };
-    }, [get, language, sectionsForm]);
+    }, [get, language, reset, clearErrors]);
 
     const onSubmit = async (data: HorizontalFormValues) => {
         const payload = data.sections.map((section) => ({
@@ -607,9 +614,11 @@ const HorizontalSectionsPage = () => {
         await update(payload);
     }
 
+    const showLoading = getLoading || isInitialLoad;
+
     return (
         <FormProvider {...sectionsForm}>
-            {getLoading ? (
+            {showLoading ? (
                 <SectionsSkeleton isRtl={isRtl} />
             ) : (
                 <form onSubmit={sectionsForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>

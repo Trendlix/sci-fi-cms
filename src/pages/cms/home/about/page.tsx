@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useForm } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeAboutStore } from "@/shared/hooks/store/home/useHomeAboutStore";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
@@ -18,9 +18,15 @@ export const AboutZodValidationSchema = z.object({
 type AboutFormValues = z.infer<typeof AboutZodValidationSchema>;
 
 const AboutPage = () => {
-    const { get, update, getLoading, updateLoading } = useHomeAboutStore();
+    const get = useHomeAboutStore((state) => state.get);
+    const update = useHomeAboutStore((state) => state.update);
+    const getLoading = useHomeAboutStore((state) => state.getLoading);
+    const updateLoading = useHomeAboutStore((state) => state.updateLoading);
+
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
+
     const aboutForm = useForm<AboutFormValues>({
         defaultValues: {
             description: ["", "", "", "", ""],
@@ -29,40 +35,43 @@ const AboutPage = () => {
         mode: "onChange",
     })
 
+    const { reset } = aboutForm;
+
     useEffect(() => {
         let isActive = true;
-        aboutForm.reset({
-            description: ["", "", "", "", ""],
-        });
-        aboutForm.clearErrors();
 
         const load = async () => {
+            setIsInitialLoad(true);
             const result = await get();
             if (!isActive) return;
-            if (!result) {
-                aboutForm.reset({
+
+            if (result) {
+                reset({
+                    description: result.description?.length === 5 ? result.description : ["", "", "", "", ""],
+                });
+            } else {
+                reset({
                     description: ["", "", "", "", ""],
                 });
-                return;
             }
-            aboutForm.reset({
-                description: result.description?.length === 5 ? result.description : ["", "", "", "", ""],
-            });
+            setIsInitialLoad(false);
         };
 
         void load();
         return () => {
             isActive = false;
         };
-    }, [get, language, aboutForm]);
+    }, [get, language, reset]);
 
     const onSubmit = async (formData: AboutFormValues) => {
         await update(formData);
     }
 
+    const showLoading = getLoading || isInitialLoad;
+
     return (
         <FormProvider {...aboutForm}>
-            {getLoading ? (
+            {showLoading ? (
                 <LoadingSkeleton isRtl={isRtl} />
             ) : (
                 <form onSubmit={aboutForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>

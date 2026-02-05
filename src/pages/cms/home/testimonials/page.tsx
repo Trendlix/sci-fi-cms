@@ -119,7 +119,9 @@ const TestimonialsPage = () => {
     const { get, update, getLoading, updateLoading } = useHomeTestimonialsStore();
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
     const [currentData, setCurrentData] = useState<TestimonialPayload[] | null>(null);
+
     const testimonialsForm = useForm<TestimonialsFormValues>({
         defaultValues: {
             testimonials: defaultTestimonials,
@@ -133,20 +135,24 @@ const TestimonialsPage = () => {
         name: "testimonials",
     })
 
+    const { reset, clearErrors } = testimonialsForm;
+
     useEffect(() => {
         let isActive = true;
-        testimonialsForm.reset({ testimonials: defaultTestimonials });
-        testimonialsForm.clearErrors();
+        reset({ testimonials: defaultTestimonials });
+        clearErrors();
 
         const load = async () => {
+            setIsInitialLoad(true);
             const result = await get();
             if (!isActive) return;
             setCurrentData(result ?? null);
             if (!result || result.length === 0) {
-                testimonialsForm.reset({ testimonials: defaultTestimonials });
+                reset({ testimonials: defaultTestimonials });
+                setIsInitialLoad(false);
                 return;
             }
-            testimonialsForm.reset({
+            reset({
                 testimonials: result.map((item) => ({
                     name: item.name ?? "",
                     title: item.title ?? "",
@@ -155,13 +161,14 @@ const TestimonialsPage = () => {
                     avatarFile: undefined,
                 })),
             });
+            setIsInitialLoad(false);
         };
 
         void load();
         return () => {
             isActive = false;
         };
-    }, [get, language, testimonialsForm]);
+    }, [get, language, reset, clearErrors]);
 
     const onSubmit = async (formData: TestimonialsFormValues) => {
         const payload = formData.testimonials.map((item) => ({
@@ -174,9 +181,11 @@ const TestimonialsPage = () => {
         await update(payload);
     }
 
+    const showLoading = getLoading || isInitialLoad;
+
     return (
         <FormProvider {...testimonialsForm}>
-            {getLoading ? (
+            {showLoading ? (
                 <LoadingSkeleton isRtl={isRtl} />
             ) : (
                 <form onSubmit={testimonialsForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>

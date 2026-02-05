@@ -22,6 +22,7 @@ export const useHomeAboutStore = create<AboutState>((set) => ({
         try {
             const response = await fetch(buildHomeUrl("/api/v1/home/about", language), {
                 cache: "no-store",
+                headers: getAuthHeaders(),
             });
             const payload = await parseApiResponse<AboutPayload>(response, { showToast: false });
             set((state) => ({

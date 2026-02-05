@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useForm } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeHeroStore } from "@/shared/hooks/store/home/useHomeHeroStore";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
@@ -20,9 +20,15 @@ export const HeroZodValidationSchema = z.object({
 type HeroFormValues = z.infer<typeof HeroZodValidationSchema>;
 
 const HeroPage = () => {
-    const { get, update, getLoading, updateLoading } = useHomeHeroStore();
+    const get = useHomeHeroStore((state) => state.get);
+    const update = useHomeHeroStore((state) => state.update);
+    const getLoading = useHomeHeroStore((state) => state.getLoading);
+    const updateLoading = useHomeHeroStore((state) => state.updateLoading);
+
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
+
     const heroForm = useForm<HeroFormValues>({
         defaultValues: {
             title: ["", "", "", "", "", ""],
@@ -32,44 +38,45 @@ const HeroPage = () => {
         mode: "onChange",
     })
 
+    const { reset } = heroForm;
+
     useEffect(() => {
         let isActive = true;
-        heroForm.reset({
-            title: ["", "", "", "", "", ""],
-            description: "",
-        });
-        heroForm.clearErrors();
 
         const load = async () => {
+            setIsInitialLoad(true);
             const result = await get();
             if (!isActive) return;
-            if (!result) {
-                heroForm.reset({
+
+            if (result) {
+                reset({
+                    title: result.title?.length === 6 ? result.title : ["", "", "", "", "", ""],
+                    description: result.description ?? "",
+                });
+            } else {
+                reset({
                     title: ["", "", "", "", "", ""],
                     description: "",
                 });
-                return;
             }
-            heroForm.reset({
-                title: result.title?.length === 6 ? result.title : ["", "", "", "", "", ""],
-                description: result.description ?? "",
-            });
+            setIsInitialLoad(false);
         };
 
         void load();
         return () => {
             isActive = false;
         };
-    }, [get, language, heroForm]);
+    }, [get, language, reset]);
 
     const onSubmit = async (formData: HeroFormValues) => {
         await update(formData);
     }
 
+    const showLoading = getLoading || isInitialLoad;
 
     return (
         <FormProvider {...heroForm}>
-            {getLoading ? (
+            {showLoading ? (
                 <LoadingSkeleton isRtl={isRtl} />
             ) : (
                 <form onSubmit={heroForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>

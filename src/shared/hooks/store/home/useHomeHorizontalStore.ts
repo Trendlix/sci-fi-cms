@@ -32,6 +32,7 @@ export const useHomeHorizontalStore = create<HorizontalState>((set, get) => ({
         try {
             const response = await fetch(buildHomeUrl("/api/v1/home/horizontal", language), {
                 cache: "no-store",
+                headers: getAuthHeaders(),
             });
             const payload = await parseApiResponse<HorizontalSection[]>(response, { showToast: false });
             set((state) => ({

@@ -22,6 +22,7 @@ export const useHomeLocationsStore = create<LocationsState>((set) => ({
         try {
             const response = await fetch(buildHomeUrl("/api/v1/home/locations", language), {
                 cache: "no-store",
+                headers: getAuthHeaders(),
             });
             const payload = await parseApiResponse<LocationPayload[]>(response, { showToast: false });
             set((state) => ({

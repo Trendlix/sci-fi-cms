@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useFieldArray, useForm } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import CommonLanguageSwitcherCheckbox from "@/shared/common/CommonLanguageSwitcherCheckbox";
 import { useHomeLocationsStore } from "@/shared/hooks/store/home/useHomeLocationsStore";
 import { useHomeLanguageStore } from "@/shared/hooks/store/home/home-language.store";
@@ -50,9 +50,15 @@ const LoadingSkeleton = ({ isRtl }: { isRtl: boolean }) => {
 }
 
 const LocationsPage = () => {
-    const { get, update, getLoading, updateLoading } = useHomeLocationsStore();
+    const get = useHomeLocationsStore((state) => state.get);
+    const update = useHomeLocationsStore((state) => state.update);
+    const getLoading = useHomeLocationsStore((state) => state.getLoading);
+    const updateLoading = useHomeLocationsStore((state) => state.updateLoading);
+
     const language = useHomeLanguageStore((state) => state.language);
     const isRtl = language === "ar";
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
+
     const locationsForm = useForm<LocationsFormValues>({
         defaultValues: {
             locations: defaultLocations,
@@ -66,40 +72,45 @@ const LocationsPage = () => {
         name: "locations",
     });
 
+    const { reset } = locationsForm;
+
     useEffect(() => {
         let isActive = true;
-        locationsForm.reset({ locations: defaultLocations });
-        locationsForm.clearErrors();
 
         const load = async () => {
+            setIsInitialLoad(true);
             const result = await get();
             if (!isActive) return;
-            if (!result || result.length === 0) {
-                locationsForm.reset({ locations: defaultLocations });
-                return;
+
+            if (result && result.length > 0) {
+                reset({
+                    locations: result.map((item) => ({
+                        title: item.title ?? "",
+                        address: item.address ?? "",
+                        mapUrl: item.mapUrl ?? "",
+                    })),
+                });
+            } else {
+                reset({ locations: defaultLocations });
             }
-            locationsForm.reset({
-                locations: result.map((item) => ({
-                    title: item.title ?? "",
-                    address: item.address ?? "",
-                    mapUrl: item.mapUrl ?? "",
-                })),
-            });
+            setIsInitialLoad(false);
         };
 
         void load();
         return () => {
             isActive = false;
         };
-    }, [get, language, locationsForm]);
+    }, [get, language, reset]);
 
     const onSubmit = async (formData: LocationsFormValues) => {
         await update(formData.locations);
     };
 
+    const showLoading = getLoading || isInitialLoad;
+
     return (
         <FormProvider {...locationsForm}>
-            {getLoading ? (
+            {showLoading ? (
                 <LoadingSkeleton isRtl={isRtl} />
             ) : (
                 <form onSubmit={locationsForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
