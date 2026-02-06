@@ -1,4 +1,4 @@
-import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldContent, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,11 +14,23 @@ import { Skeleton } from "@/components/ui/skeleton";
 export const LocationsZodValidationSchema = z.object({
     locations: z.array(
         z.object({
-            title: z.string().min(3, "Title is required"),
-            address: z.string().min(10, "Address is required"),
-            mapUrl: z.string().url("Map URL must be valid"),
+            title: z
+                .string()
+                .trim()
+                .min(1, "Title is required")
+                .min(3, "Title must be at least 3 characters"),
+            address: z
+                .string()
+                .trim()
+                .min(1, "Address is required")
+                .min(10, "Address must be at least 10 characters"),
+            mapUrl: z
+                .string()
+                .trim()
+                .min(1, "Map URL is required")
+                .url("URL must be a valid URL"),
         })
-    ).min(1),
+    ).min(1, "At least one location is required"),
 });
 
 type LocationsFormValues = z.infer<typeof LocationsZodValidationSchema>;
@@ -107,6 +119,8 @@ const LocationsPage = () => {
     };
 
     const showLoading = getLoading || isInitialLoad;
+    const { errors, isSubmitted } = locationsForm.formState;
+    const locationErrors = Array.isArray(errors.locations) ? errors.locations : [];
 
     return (
         <FormProvider {...locationsForm}>
@@ -136,50 +150,80 @@ const LocationsPage = () => {
                                 <FieldGroup className="grid gap-4 md:grid-cols-2">
                                     <Field>
                                         <FieldLabel htmlFor={`title-${index}`} className="text-white/80">
-                                            Title <span className="text-white">*</span>
+                                            Title <span className="text-white">*</span> (at least 3 characters)
                                         </FieldLabel>
                                         <FieldContent>
                                             <Input
                                                 id={`title-${index}`}
                                                 placeholder="Location title"
                                                 className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                                required
                                                 {...locationsForm.register(`locations.${index}.title`)}
                                             />
-                                            <FieldError errors={[locationsForm.formState.errors.locations?.[index]?.title]} />
                                         </FieldContent>
                                     </Field>
                                     <Field>
                                         <FieldLabel htmlFor={`map-url-${index}`} className="text-white/80">
-                                            Map URL <span className="text-white">*</span>
+                                            Map URL <span className="text-white">*</span> (valid URL)
                                         </FieldLabel>
                                         <FieldContent>
                                             <Input
                                                 id={`map-url-${index}`}
                                                 placeholder="https://maps.google.com/..."
                                                 className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                                required
                                                 {...locationsForm.register(`locations.${index}.mapUrl`)}
                                             />
-                                            <FieldError errors={[locationsForm.formState.errors.locations?.[index]?.mapUrl]} />
                                         </FieldContent>
                                     </Field>
                                     <Field className="md:col-span-2">
                                         <FieldLabel htmlFor={`address-${index}`} className="text-white/80">
-                                            Address <span className="text-white">*</span>
+                                            Address <span className="text-white">*</span> (at least 10 characters)
                                         </FieldLabel>
                                         <FieldContent>
                                             <Input
                                                 id={`address-${index}`}
                                                 placeholder="Enter address"
                                                 className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                                required
                                                 {...locationsForm.register(`locations.${index}.address`)}
                                             />
-                                            <FieldError errors={[locationsForm.formState.errors.locations?.[index]?.address]} />
                                         </FieldContent>
                                     </Field>
                                 </FieldGroup>
                             </div>
                         ))}
                     </div>
+                    {isSubmitted && (locationErrors.some(Boolean) || !!errors.locations) ? (
+                        <div className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
+                            <p className="font-medium">Please fix the following fields:</p>
+                            <ul className="mt-2 list-disc pl-5">
+                                {locationErrors.map((error, index) => {
+                                    if (!error) {
+                                        return null;
+                                    }
+                                    const items = [];
+                                    if (error.title) {
+                                        items.push(
+                                            <li key={`location-title-error-${index}`}>Location {index + 1} title</li>
+                                        );
+                                    }
+                                    if (error.address) {
+                                        items.push(
+                                            <li key={`location-address-error-${index}`}>Location {index + 1} address</li>
+                                        );
+                                    }
+                                    if (error.mapUrl) {
+                                        items.push(
+                                            <li key={`location-map-error-${index}`}>Location {index + 1} map URL</li>
+                                        );
+                                    }
+                                    return items;
+                                })}
+                                {errors.locations && !locationErrors.length ? <li>Locations</li> : null}
+                            </ul>
+                        </div>
+                    ) : null}
                     <div className="flex flex-col gap-3 md:flex-row">
                         <Button
                             type="button"
@@ -197,7 +241,7 @@ const LocationsPage = () => {
                         <Button
                             type="submit"
                             className="bg-white/90 text-black hover:bg-white flex-4"
-                            disabled={getLoading || updateLoading}
+                            disabled={getLoading || updateLoading || !locationsForm.formState.isDirty}
                         >
                             {updateLoading ? "Saving..." : "Save"}
                         </Button>

@@ -24,7 +24,7 @@ export const useHomeLocationsStore = create<LocationsState>((set) => ({
                 cache: "no-store",
                 headers: getAuthHeaders(),
             });
-            const payload = await parseApiResponse<LocationPayload[]>(response, { showToast: false });
+            const payload = await parseApiResponse<LocationPayload[]>(response, { showToast: false, allowNotFound: true });
             set((state) => ({
                 data: {
                     ...state.data,

@@ -1,4 +1,4 @@
-import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldContent, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import BasicRichEditor from "@/components/tiptap/BasicRichEditor";
 import { Button } from "@/components/ui/button";
@@ -57,7 +57,7 @@ type FeaturesListProps = {
 };
 
 const FeaturesList = ({ cardKey }: FeaturesListProps) => {
-    const { control, register, formState } = useFormContext<EventProgramFormValues>();
+    const { control, register } = useFormContext<EventProgramFormValues>();
     const featuresFieldArray = useFieldArray({
         control,
         name: `${cardKey}.features`,
@@ -73,7 +73,6 @@ const FeaturesList = ({ cardKey }: FeaturesListProps) => {
                             className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
                             {...register(`${cardKey}.features.${index}.value`)}
                         />
-                        <FieldError errors={[formState.errors?.[cardKey]?.features?.[index]?.value]} />
                     </div>
                     <Button
                         type="button"
@@ -114,6 +113,14 @@ const EventsProgram = () => {
     });
 
     const cardValues = useWatch({ control: programForm.control });
+    const { errors, isSubmitted } = programForm.formState;
+    const hasSubmitErrors = programCards.some((card) => {
+        const cardErrors = errors?.[card.key];
+        if (!cardErrors) {
+            return false;
+        }
+        return !!cardErrors.icon || !!cardErrors.description || (Array.isArray(cardErrors.features) && cardErrors.features.some(Boolean));
+    });
 
     useEffect(() => {
         let isActive = true;
@@ -216,7 +223,7 @@ const EventsProgram = () => {
                                 <FieldGroup className="grid gap-4 md:grid-cols-2">
                                     <Field>
                                         <FieldLabel htmlFor={`events-program-icon-${card.key}`} className="text-white/80">
-                                            Icon <span className="text-white">*</span>
+                                        Icon <span className="text-white">*</span> (required)
                                         </FieldLabel>
                                         <FieldContent>
                                             <Input
@@ -225,32 +232,62 @@ const EventsProgram = () => {
                                                 className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
                                                 {...programForm.register(`${card.key}.icon`)}
                                             />
-                                            <FieldError errors={[programForm.formState.errors?.[card.key]?.icon]} />
                                         </FieldContent>
                                     </Field>
                                 </FieldGroup>
                                 <Field>
-                                    <FieldLabel className="text-white/80">Features</FieldLabel>
+                                <FieldLabel className="text-white/80">Features <span className="text-white">*</span> (at least 1)</FieldLabel>
                                     <FieldContent>
                                         <FeaturesList cardKey={card.key} />
                                     </FieldContent>
                                 </Field>
                                 <Field>
                                     <FieldLabel className="text-white/80">
-                                        Description <span className="text-white">*</span>
+                                    Description <span className="text-white">*</span> (at least 10 characters)
                                     </FieldLabel>
                                     <FieldContent>
                                         <BasicRichEditor
                                             name={`${card.key}.description`}
                                             value={descriptionValue ?? ""}
                                         />
-                                        <FieldError errors={[programForm.formState.errors?.[card.key]?.description]} />
                                     </FieldContent>
                                 </Field>
                             </div>
                         );
                     })}
                 </div>
+                {isSubmitted && hasSubmitErrors ? (
+                    <div className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
+                        <p className="font-medium">Please fix the following fields:</p>
+                        <ul className="mt-2 list-disc pl-5">
+                            {programCards.map((card) => {
+                                const cardErrors = errors?.[card.key];
+                                if (!cardErrors) {
+                                    return null;
+                                }
+                                const items = [];
+                                if (cardErrors.icon) {
+                                    items.push(<li key={`events-program-icon-${card.key}`}>{card.label} icon</li>);
+                                }
+                                if (cardErrors.description) {
+                                    items.push(<li key={`events-program-description-${card.key}`}>{card.label} description</li>);
+                                }
+                                if (Array.isArray(cardErrors.features)) {
+                                    cardErrors.features.forEach((featureError, featureIndex) => {
+                                        if (featureError?.value) {
+                                            items.push(
+                                                <li key={`events-program-feature-${card.key}-${featureIndex}`}>
+                                                    {card.label} feature {featureIndex + 1}
+                                                </li>
+                                            );
+                                        }
+                                    });
+                                }
+                                return items;
+                            })}
+                        </ul>
+                    </div>
+                ) : null}
                 <Button
                     type="submit"
                     className="w-full bg-white/90 text-black hover:bg-white"

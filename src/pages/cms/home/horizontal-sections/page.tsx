@@ -1,4 +1,4 @@
-import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldContent, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import BasicRichEditor from "@/components/tiptap/BasicRichEditor";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, FormProvider, useFieldArray, useForm, useWatch } from "react-hook-form";
-import type { Control, FieldErrors, UseFormRegister, UseFormResetField, UseFormSetValue } from "react-hook-form";
+import type { Control, UseFormRegister, UseFormResetField, UseFormSetValue } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
 import { Link, Play } from "lucide-react";
@@ -27,14 +27,22 @@ export const HorizontalZodValidationSchema = z.object({
     sections: z.array(
         z.object({
             linkType: z.enum(["image", "video", "link"]),
-            linkUrl: z.string().optional(),
+            linkUrl: z.string().trim().optional(),
             linkFile: z.any().optional(),
-            title: z.array(z.string().min(1, "Title word is required")).length(2),
-            slogan: z.string().min(3, "Slogan is required"),
-            description: z.array(z.object({ value: z.string().min(1, "Description is required") })).min(1),
+            title: z
+                .array(z.string().trim().min(1, "Title word is required"))
+                .length(2, "Two title words are required"),
+            slogan: z
+                .string()
+                .trim()
+                .min(1, "Slogan is required")
+                .min(3, "Slogan must be at least 3 characters"),
+            description: z
+                .array(z.object({ value: z.string().trim().min(1, "Description is required") }))
+                .min(1, "At least one description is required"),
         })
     )
-        .min(1)
+        .min(1, "At least one section is required")
         .superRefine((sections, ctx) => {
             sections.forEach((section, index) => {
                 const trimmedUrl = section.linkUrl?.trim();
@@ -76,7 +84,6 @@ type SectionFieldsProps = {
     register: UseFormRegister<HorizontalFormValues>;
     setValue: UseFormSetValue<HorizontalFormValues>;
     resetField: UseFormResetField<HorizontalFormValues>;
-    errors: FieldErrors<HorizontalFormValues>;
     onRemove: () => void;
     canRemove: boolean;
     trigger: ReturnType<typeof useForm<HorizontalFormValues>>['trigger'];
@@ -121,7 +128,7 @@ const LinkTypeField = ({
 }: LinkTypeFieldProps) => (
     <Field>
         <FieldLabel htmlFor={`link-type-${index}`} className="text-white/80">
-            Type <span className="text-white">*</span>
+            Type <span className="text-white">*</span> (required)
         </FieldLabel>
         <FieldContent>
             <Controller
@@ -162,8 +169,6 @@ type LinkTargetFieldProps = {
     register: UseFormRegister<HorizontalFormValues>;
     linkType: LinkTypeValue;
     linkUrl?: string;
-    linkUrlError?: FieldErrors<HorizontalFormValues>["sections"];
-    linkFileError?: FieldErrors<HorizontalFormValues>["sections"];
     filePreviewUrl: string | null;
     onOpenPreview: () => void;
 };
@@ -174,22 +179,20 @@ const LinkTargetField = ({
     register,
     linkType,
     linkUrl,
-    linkUrlError,
-    linkFileError,
     filePreviewUrl,
     onOpenPreview,
 }: LinkTargetFieldProps) => (
     <Field>
         <FieldLabel htmlFor={`link-input-${index}`} className="text-white/80">
-            {linkType === "link" ? "Paste link" : `Upload ${linkType ?? "image"}`}
-            <span className="text-white">*</span>
+            {linkType === "link" ? "Paste link" : `File (${linkType ?? "image"})`}
+            <span className="text-white">*</span> (required)
         </FieldLabel>
         <FieldContent>
             {linkType === "link" ? (
                 <div className="flex items-center gap-3">
                     <InputGroup className="border-white/20 bg-white/5 text-white focus-visible:border-white/40">
                         <InputGroupAddon className="text-white/60">
-                            {linkUrl && !linkUrlError ? (
+                            {linkUrl ? (
                                 <a
                                     href={linkUrl}
                                     target="_blank"
@@ -207,10 +210,10 @@ const LinkTargetField = ({
                             key={`link-url-${index}-${linkType}`}
                             placeholder="Paste link (youtube...)"
                             className="text-white placeholder:text-white/40"
+                            required={linkType === "link"}
                             {...register(`sections.${index}.linkUrl`)}
                         />
                     </InputGroup>
-                    <FieldError errors={[linkUrlError as { message?: string } | undefined]} />
                 </div>
             ) : (
                 <Controller
@@ -286,7 +289,6 @@ const LinkTargetField = ({
                                     controllerField.onChange(file ?? undefined);
                                 }}
                             />
-                            <FieldError errors={[linkFileError as { message?: string } | undefined]} />
                         </div>
                     )}
                 />
@@ -298,24 +300,23 @@ const LinkTargetField = ({
 type SectionTitlesProps = {
     index: number;
     register: UseFormRegister<HorizontalFormValues>;
-    errors: FieldErrors<HorizontalFormValues>;
 };
 
-const SectionTitles = ({ index, register, errors }: SectionTitlesProps) => (
+const SectionTitles = ({ index, register }: SectionTitlesProps) => (
     <>
         {Array.from({ length: 2 }).map((_, titleIndex) => (
             <Field key={`title-${index}-${titleIndex}`}>
                 <FieldLabel htmlFor={`title-${index}-${titleIndex}`} className="text-white/80">
-                    Title word {titleIndex + 1} <span className="text-white">*</span>
+                    Title word {titleIndex + 1} <span className="text-white">*</span> (required)
                 </FieldLabel>
                 <FieldContent>
                     <Input
                         id={`title-${index}-${titleIndex}`}
                         placeholder={`Word ${titleIndex + 1}`}
                         className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                        required
                         {...register(`sections.${index}.title.${titleIndex}`)}
                     />
-                    <FieldError errors={[errors?.sections?.[index]?.title?.[titleIndex]]} />
                 </FieldContent>
             </Field>
         ))}
@@ -325,22 +326,21 @@ const SectionTitles = ({ index, register, errors }: SectionTitlesProps) => (
 type SectionSloganProps = {
     index: number;
     register: UseFormRegister<HorizontalFormValues>;
-    errors: FieldErrors<HorizontalFormValues>;
 };
 
-const SectionSlogan = ({ index, register, errors }: SectionSloganProps) => (
+const SectionSlogan = ({ index, register }: SectionSloganProps) => (
     <Field className="md:col-span-2">
         <FieldLabel htmlFor={`slogan-${index}`} className="text-white/80">
-            Slogan <span className="text-white">*</span>
+            Slogan <span className="text-white">*</span> (at least 3 characters)
         </FieldLabel>
         <FieldContent>
             <Input
                 id={`slogan-${index}`}
                 placeholder="Enter slogan"
                 className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                required
                 {...register(`sections.${index}.slogan`)}
             />
-            <FieldError errors={[errors?.sections?.[index]?.slogan]} />
         </FieldContent>
     </Field>
 );
@@ -348,23 +348,21 @@ const SectionSlogan = ({ index, register, errors }: SectionSloganProps) => (
 type DescriptionFieldsProps = {
     index: number;
     descriptionFields: ReturnType<typeof useFieldArray<HorizontalFormValues>>;
-    errors: FieldErrors<HorizontalFormValues>;
     descriptionValues?: { value?: string }[];
 };
 
-const DescriptionFields = ({ index, descriptionFields, errors, descriptionValues }: DescriptionFieldsProps) => (
+const DescriptionFields = ({ index, descriptionFields, descriptionValues }: DescriptionFieldsProps) => (
     <FieldGroup className="grid gap-4">
         {descriptionFields.fields.map((field, descriptionIndex) => (
             <Field key={field.id}>
                 <FieldLabel htmlFor={`description-${index}-${descriptionIndex}`} className="text-white/80">
-                    Description {descriptionIndex + 1} <span className="text-white">*</span>
+                    Description {descriptionIndex + 1} <span className="text-white">*</span> (required)
                 </FieldLabel>
                 <FieldContent>
                     <BasicRichEditor
                         name={`sections.${index}.description.${descriptionIndex}.value`}
                         value={descriptionValues?.[descriptionIndex]?.value ?? ""}
                     />
-                    <FieldError errors={[errors?.sections?.[index]?.description?.[descriptionIndex]?.value]} />
                 </FieldContent>
                 <div className="mt-2 flex justify-end">
                     <Button
@@ -416,7 +414,7 @@ const PageHeader = () => (
     </div>
 );
 
-const SectionFields = ({ index, control, register, setValue, resetField, errors, onRemove, canRemove, trigger }: SectionFieldsProps) => {
+const SectionFields = ({ index, control, register, setValue, resetField, onRemove, canRemove, trigger }: SectionFieldsProps) => {
     const openPreview = usePreviewModalStore((state) => state.open);
     const descriptionFields = useFieldArray({
         control,
@@ -438,8 +436,6 @@ const SectionFields = ({ index, control, register, setValue, resetField, errors,
         control,
         name: `sections.${index}.linkUrl`,
     });
-    const linkUrlError = errors?.sections?.[index]?.linkUrl;
-    const linkFileError = errors?.sections?.[index]?.linkFile;
     const savedValuesRef = useRef<Record<string, { url?: string; file?: File }>>({});
     const filePreviewUrl = useMemo(() => {
         if (linkFile instanceof File) {
@@ -504,8 +500,6 @@ const SectionFields = ({ index, control, register, setValue, resetField, errors,
                     register={register}
                     linkType={linkType}
                     linkUrl={linkUrl}
-                    linkUrlError={linkUrlError}
-                    linkFileError={linkFileError}
                     filePreviewUrl={filePreviewUrl}
                     onOpenPreview={() => {
                         if (!filePreviewUrl) {
@@ -520,13 +514,12 @@ const SectionFields = ({ index, control, register, setValue, resetField, errors,
                 />
             </FieldGroup>
             <FieldGroup className="grid gap-4 md:grid-cols-2">
-                <SectionTitles index={index} register={register} errors={errors} />
-                <SectionSlogan index={index} register={register} errors={errors} />
+                <SectionTitles index={index} register={register} />
+                <SectionSlogan index={index} register={register} />
             </FieldGroup>
             <DescriptionFields
                 index={index}
                 descriptionFields={descriptionFields}
-                errors={errors}
                 descriptionValues={descriptionValues}
             />
             {descriptionFields.fields.length <= 1 ? (
@@ -612,9 +605,30 @@ const HorizontalSectionsPage = () => {
         }));
 
         await update(payload);
+        const refreshed = await get();
+        if (!refreshed || refreshed.length === 0) {
+            reset({ sections: defaultSections });
+            return;
+        }
+        reset({
+            sections: refreshed.map((section) => ({
+                linkType: section.link.type === "external"
+                    ? "link"
+                    : section.link.contentType === "video"
+                        ? "video"
+                        : "image",
+                linkUrl: section.link.url ?? "",
+                linkFile: undefined,
+                title: section.title ?? ["", ""],
+                slogan: section.slogan ?? "",
+                description: (section.description ?? []).map((value) => ({ value })),
+            })),
+        });
     }
 
     const showLoading = getLoading || isInitialLoad;
+    const { errors, isSubmitted } = sectionsForm.formState;
+    const sectionErrors = Array.isArray(errors.sections) ? errors.sections : [];
 
     return (
         <FormProvider {...sectionsForm}>
@@ -633,13 +647,71 @@ const HorizontalSectionsPage = () => {
                                 register={sectionsForm.register}
                                 setValue={sectionsForm.setValue}
                                 resetField={sectionsForm.resetField}
-                                errors={sectionsForm.formState.errors}
                                 onRemove={() => sectionFields.remove(index)}
                                 canRemove={sectionFields.fields.length > 1}
                                 trigger={sectionsForm.trigger}
                             />
                         ))}
                     </div>
+                    {isSubmitted && (sectionErrors.some(Boolean) || !!errors.sections) ? (
+                        <div className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
+                            <p className="font-medium">Please fix the following fields:</p>
+                            <ul className="mt-2 list-disc pl-5">
+                                {sectionErrors.map((error, index) => {
+                                    if (!error) {
+                                        return null;
+                                    }
+                                    const items = [];
+                                    if (error.linkType) {
+                                        items.push(
+                                            <li key={`section-link-type-error-${index}`}>Section {index + 1} type</li>
+                                        );
+                                    }
+                                    if (error.linkUrl) {
+                                        items.push(
+                                            <li key={`section-link-url-error-${index}`}>Section {index + 1} link URL</li>
+                                        );
+                                    }
+                                    if (error.linkFile) {
+                                        items.push(
+                                            <li key={`section-link-file-error-${index}`}>Section {index + 1} upload</li>
+                                        );
+                                    }
+                                    const titleErrors = Array.isArray(error.title)
+                                        ? (error.title as Array<{ message?: string } | undefined>)
+                                        : [];
+                                    titleErrors.forEach((titleError, titleIndex) => {
+                                        if (titleError) {
+                                            items.push(
+                                                <li key={`section-title-error-${index}-${titleIndex}`}>
+                                                    Section {index + 1} title word {titleIndex + 1}
+                                                </li>
+                                            );
+                                        }
+                                    });
+                                    if (error.slogan) {
+                                        items.push(
+                                            <li key={`section-slogan-error-${index}`}>Section {index + 1} slogan</li>
+                                        );
+                                    }
+                                    const descriptionErrors = Array.isArray(error.description)
+                                        ? (error.description as Array<{ value?: { message?: string } | undefined } | undefined>)
+                                        : [];
+                                    descriptionErrors.forEach((descError, descIndex) => {
+                                        if (descError?.value) {
+                                            items.push(
+                                                <li key={`section-description-error-${index}-${descIndex}`}>
+                                                    Section {index + 1} description {descIndex + 1}
+                                                </li>
+                                            );
+                                        }
+                                    });
+                                    return items;
+                                })}
+                                {errors.sections && !sectionErrors.length ? <li>Sections</li> : null}
+                            </ul>
+                        </div>
+                    ) : null}
                     <div className="flex flex-col gap-3 md:flex-row">
                         <Button
                             type="button"
@@ -660,7 +732,7 @@ const HorizontalSectionsPage = () => {
                         <Button
                             type="submit"
                             className="bg-white/90 text-black hover:bg-white flex-4"
-                            disabled={getLoading || updateLoading}
+                            disabled={getLoading || updateLoading || !sectionsForm.formState.isDirty}
                         >
                             {getLoading || updateLoading ? "Saving..." : "Save"}
                         </Button>

@@ -83,8 +83,10 @@ const BasicRichEditor = ({
     }, [register, name]);
 
     const onChangeContent = (value: string) => {
-        setValue(name, value, { shouldValidate: true, shouldDirty: true });
-        onChange?.(value);
+        const trimmedValue = value.trim();
+        const resolvedValue = trimmedValue === "<p></p>" ? "" : value;
+        setValue(name, resolvedValue, { shouldValidate: true, shouldDirty: true });
+        onChange?.(resolvedValue);
     };
 
     const fieldContainerClass = 'relative rounded-md border border-white/20 bg-white/5 text-white focus-within:border-white/40';

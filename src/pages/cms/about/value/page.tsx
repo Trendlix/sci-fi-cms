@@ -1,4 +1,4 @@
-import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldContent, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import BasicRichEditor from "@/components/tiptap/BasicRichEditor";
 import { Button } from "@/components/ui/button";
@@ -95,15 +95,14 @@ const AboutValue = () => {
                     <CommonLanguageSwitcherCheckbox />
                     <div className="space-y-1 text-white">
                         <h1 className="text-2xl font-semibold text-white">Value Section</h1>
-                        <p className="text-sm text-white/70">Add value cards</p>
+                        <p className="text-sm text-white/70">Add value cards (at least 1 required)</p>
                     </div>
                     <Field>
                         <FieldLabel htmlFor="value-description" className="text-white/80">
-                            Description <span className="text-white">*</span>
+                            Description <span className="text-white">*</span> (at least 10 characters)
                         </FieldLabel>
                         <FieldContent>
                             <BasicRichEditor name="description" value={descriptionValue ?? ""} />
-                            <FieldError errors={[valueForm.formState.errors.description]} />
                         </FieldContent>
                     </Field>
                     <div className="space-y-6">
@@ -123,7 +122,7 @@ const AboutValue = () => {
                                 <FieldGroup className="grid gap-4 md:grid-cols-2">
                                     <Field>
                                         <FieldLabel htmlFor={`value-icon-${index}`} className="text-white/80">
-                                            Icon <span className="text-white">*</span>
+                                            Icon <span className="text-white">*</span> (required)
                                         </FieldLabel>
                                         <FieldContent>
                                             <Input
@@ -132,12 +131,11 @@ const AboutValue = () => {
                                                 className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
                                                 {...valueForm.register(`cards.${index}.icon`)}
                                             />
-                                            <FieldError errors={[valueForm.formState.errors.cards?.[index]?.icon]} />
                                         </FieldContent>
                                     </Field>
                                     <Field>
                                         <FieldLabel htmlFor={`value-title-${index}`} className="text-white/80">
-                                            Title <span className="text-white">*</span>
+                                            Title <span className="text-white">*</span> (at least 3 characters)
                                         </FieldLabel>
                                         <FieldContent>
                                             <Input
@@ -146,19 +144,17 @@ const AboutValue = () => {
                                                 className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
                                                 {...valueForm.register(`cards.${index}.title`)}
                                             />
-                                            <FieldError errors={[valueForm.formState.errors.cards?.[index]?.title]} />
                                         </FieldContent>
                                     </Field>
                                     <Field className="md:col-span-2">
                                         <FieldLabel htmlFor={`value-description-${index}`} className="text-white/80">
-                                            Description <span className="text-white">*</span>
+                                            Description <span className="text-white">*</span> (at least 10 characters)
                                         </FieldLabel>
                                         <FieldContent>
                                             <BasicRichEditor
                                                 name={`cards.${index}.description`}
                                                 value={cardsValue?.[index]?.description ?? ""}
                                             />
-                                            <FieldError errors={[valueForm.formState.errors.cards?.[index]?.description]} />
                                         </FieldContent>
                                     </Field>
                                 </FieldGroup>
@@ -172,6 +168,39 @@ const AboutValue = () => {
                     >
                         Add card
                     </Button>
+                    {valueForm.formState.isSubmitted &&
+                        (Array.isArray(valueForm.formState.errors.cards)
+                            ? valueForm.formState.errors.cards.some(Boolean)
+                            : !!valueForm.formState.errors.cards ||
+                            !!valueForm.formState.errors.description) ? (
+                        <div className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
+                            <p className="font-medium">Please fix the following fields:</p>
+                            <ul className="mt-2 list-disc pl-5">
+                                {valueForm.formState.errors.description ? <li>Description</li> : null}
+                                {(Array.isArray(valueForm.formState.errors.cards)
+                                    ? valueForm.formState.errors.cards
+                                    : []
+                                ).map((error, index) => {
+                                    if (!error) {
+                                        return null;
+                                    }
+                                    const items = [];
+                                    if (error.icon) {
+                                        items.push(<li key={`value-card-icon-${index}`}>Card {index + 1} icon</li>);
+                                    }
+                                    if (error.title) {
+                                        items.push(<li key={`value-card-title-${index}`}>Card {index + 1} title</li>);
+                                    }
+                                    if (error.description) {
+                                        items.push(
+                                            <li key={`value-card-description-${index}`}>Card {index + 1} description</li>
+                                        );
+                                    }
+                                    return items;
+                                })}
+                            </ul>
+                        </div>
+                    ) : null}
                     <Button
                         type="submit"
                         className="w-full bg-white/90 text-black hover:bg-white"

@@ -1,4 +1,4 @@
-import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldContent, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import BasicRichEditor from "@/components/tiptap/BasicRichEditor";
 import { Button } from "@/components/ui/button";
@@ -123,7 +123,7 @@ type HighlightsListProps = {
 };
 
 const HighlightsList = ({ cardIndex }: HighlightsListProps) => {
-    const { control, register, formState } = useFormContext<EventHowFormValues>();
+    const { control, register } = useFormContext<EventHowFormValues>();
     const highlightsFieldArray = useFieldArray({
         control,
         name: `cards.${cardIndex}.highlights`,
@@ -139,7 +139,6 @@ const HighlightsList = ({ cardIndex }: HighlightsListProps) => {
                             className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
                             {...register(`cards.${cardIndex}.highlights.${index}.value`)}
                         />
-                        <FieldError errors={[formState.errors.cards?.[cardIndex]?.highlights?.[index]?.value]} />
                     </div>
                     <Button
                         type="button"
@@ -179,6 +178,9 @@ const EventsHow = () => {
 
     const cardsValue = useWatch({ control: howForm.control, name: "cards" });
     const descriptionValue = useWatch({ control: howForm.control, name: "description" });
+    const { errors, isSubmitted } = howForm.formState;
+    const cardErrors = Array.isArray(errors.cards) ? errors.cards : [];
+    const hasSubmitErrors = cardErrors.some(Boolean) || !!errors.description;
 
     const cardFields = useFieldArray({
         control: howForm.control,
@@ -242,116 +244,150 @@ const EventsHow = () => {
                 <LoadingSkeleton isRtl={isRtl} />
             ) : (
                 <form onSubmit={howForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
-                <CommonLanguageSwitcherCheckbox />
-                <div className="space-y-1 text-white">
-                    <h1 className="text-2xl font-semibold text-white">Events How</h1>
-                    <p className="text-sm text-white/70">Add description and cards</p>
-                </div>
-                <Field>
-                    <FieldLabel htmlFor="events-how-description" className="text-white/80">
-                        Description <span className="text-white">*</span>
-                    </FieldLabel>
-                    <FieldContent>
-                        <BasicRichEditor
-                            name="description"
-                            value={descriptionValue ?? ""}
-                        />
-                        <FieldError errors={[howForm.formState.errors.description]} />
-                    </FieldContent>
-                </Field>
-                <div className="space-y-6">
-                    {cardFields.fields.map((field, index) => (
-                        <div key={field.id} className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
-                            <div className="flex items-center justify-between">
-                                <h2 className="text-lg font-semibold text-white">Card {index + 1}</h2>
-                                <Button
-                                    type="button"
-                                    className="bg-white/10 text-white hover:bg-white/20"
-                                    disabled={cardFields.fields.length <= 1}
-                                    onClick={() => cardFields.remove(index)}
-                                >
-                                    Remove card
-                                </Button>
+                    <CommonLanguageSwitcherCheckbox />
+                    <div className="space-y-1 text-white">
+                        <h1 className="text-2xl font-semibold text-white">Events How</h1>
+                        <p className="text-sm text-white/70">Add description and cards</p>
+                    </div>
+                    <Field>
+                        <FieldLabel htmlFor="events-how-description" className="text-white/80">
+                            Description <span className="text-white">*</span> (at least 10 characters)
+                        </FieldLabel>
+                        <FieldContent>
+                            <BasicRichEditor
+                                name="description"
+                                value={descriptionValue ?? ""}
+                            />
+                        </FieldContent>
+                    </Field>
+                    <div className="space-y-6">
+                        {cardFields.fields.map((field, index) => (
+                            <div key={field.id} className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-lg font-semibold text-white">Card {index + 1}</h2>
+                                    <Button
+                                        type="button"
+                                        className="bg-white/10 text-white hover:bg-white/20"
+                                        disabled={cardFields.fields.length <= 1}
+                                        onClick={() => cardFields.remove(index)}
+                                    >
+                                        Remove card
+                                    </Button>
+                                </div>
+                                <Field>
+                                    <FieldLabel className="text-white/80">
+                                        File <span className="text-white">*</span> (required)
+                                    </FieldLabel>
+                                    <FieldContent>
+                                        <CardFileUploader
+                                            control={howForm.control}
+                                            name={`cards.${index}.fileFile`}
+                                            inputId={`events-how-file-${index}`}
+                                            existingUrl={currentData?.cards?.[index]?.file?.url}
+                                        />
+                                    </FieldContent>
+                                </Field>
+                                <FieldGroup className="grid gap-4 md:grid-cols-2">
+                                    <Field>
+                                        <FieldLabel htmlFor={`events-how-icon-${index}`} className="text-white/80">
+                                            Icon <span className="text-white">*</span> (required)
+                                        </FieldLabel>
+                                        <FieldContent>
+                                            <Input
+                                                id={`events-how-icon-${index}`}
+                                                placeholder="Enter icon"
+                                                className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                                {...howForm.register(`cards.${index}.icon`)}
+                                            />
+                                        </FieldContent>
+                                    </Field>
+                                    <Field>
+                                        <FieldLabel htmlFor={`events-how-title-${index}`} className="text-white/80">
+                                            Title <span className="text-white">*</span> (required)
+                                        </FieldLabel>
+                                        <FieldContent>
+                                            <Input
+                                                id={`events-how-title-${index}`}
+                                                placeholder="Enter title"
+                                                className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                                {...howForm.register(`cards.${index}.title`)}
+                                            />
+                                        </FieldContent>
+                                    </Field>
+                                </FieldGroup>
+                                <Field>
+                                    <FieldLabel className="text-white/80">
+                                        Description <span className="text-white">*</span> (at least 10 characters)
+                                    </FieldLabel>
+                                    <FieldContent>
+                                        <BasicRichEditor
+                                            name={`cards.${index}.description`}
+                                            value={cardsValue?.[index]?.description ?? ""}
+                                        />
+                                    </FieldContent>
+                                </Field>
+                                <Field>
+                                    <FieldLabel className="text-white/80">Highlights <span className="text-white">*</span> (at least 1)</FieldLabel>
+                                    <FieldContent>
+                                        <HighlightsList cardIndex={index} />
+                                    </FieldContent>
+                                </Field>
                             </div>
-                            <Field>
-                                <FieldLabel className="text-white/80">
-                                    File <span className="text-white">*</span>
-                                </FieldLabel>
-                                <FieldContent>
-                                    <CardFileUploader
-                                        control={howForm.control}
-                                        name={`cards.${index}.fileFile`}
-                                        inputId={`events-how-file-${index}`}
-                                        existingUrl={currentData?.cards?.[index]?.file?.url}
-                                    />
-                                    <FieldError errors={[howForm.formState.errors.cards?.[index]?.fileFile]} />
-                                </FieldContent>
-                            </Field>
-                            <FieldGroup className="grid gap-4 md:grid-cols-2">
-                                <Field>
-                                    <FieldLabel htmlFor={`events-how-icon-${index}`} className="text-white/80">
-                                        Icon <span className="text-white">*</span>
-                                    </FieldLabel>
-                                    <FieldContent>
-                                        <Input
-                                            id={`events-how-icon-${index}`}
-                                            placeholder="Enter icon"
-                                            className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                                            {...howForm.register(`cards.${index}.icon`)}
-                                        />
-                                        <FieldError errors={[howForm.formState.errors.cards?.[index]?.icon]} />
-                                    </FieldContent>
-                                </Field>
-                                <Field>
-                                    <FieldLabel htmlFor={`events-how-title-${index}`} className="text-white/80">
-                                        Title <span className="text-white">*</span>
-                                    </FieldLabel>
-                                    <FieldContent>
-                                        <Input
-                                            id={`events-how-title-${index}`}
-                                            placeholder="Enter title"
-                                            className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                                            {...howForm.register(`cards.${index}.title`)}
-                                        />
-                                        <FieldError errors={[howForm.formState.errors.cards?.[index]?.title]} />
-                                    </FieldContent>
-                                </Field>
-                            </FieldGroup>
-                            <Field>
-                                <FieldLabel className="text-white/80">
-                                    Description <span className="text-white">*</span>
-                                </FieldLabel>
-                                <FieldContent>
-                                    <BasicRichEditor
-                                        name={`cards.${index}.description`}
-                                        value={cardsValue?.[index]?.description ?? ""}
-                                    />
-                                    <FieldError errors={[howForm.formState.errors.cards?.[index]?.description]} />
-                                </FieldContent>
-                            </Field>
-                            <Field>
-                                <FieldLabel className="text-white/80">Highlights</FieldLabel>
-                                <FieldContent>
-                                    <HighlightsList cardIndex={index} />
-                                </FieldContent>
-                            </Field>
+                        ))}
+                        <Button
+                            type="button"
+                            className="bg-white/10 text-white hover:bg-white/20"
+                            onClick={() => cardFields.append({ ...defaultCard })}
+                        >
+                            Add card
+                        </Button>
+                    </div>
+                    {isSubmitted && hasSubmitErrors ? (
+                        <div className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
+                            <p className="font-medium">Please fix the following fields:</p>
+                            <ul className="mt-2 list-disc pl-5">
+                                {errors.description ? <li>Description</li> : null}
+                                {cardErrors.map((error, index) => {
+                                    if (!error) {
+                                        return null;
+                                    }
+                                    const items = [];
+                                    if (error.fileFile) {
+                                        items.push(<li key={`events-how-file-${index}`}>Card {index + 1} file</li>);
+                                    }
+                                    if (error.icon) {
+                                        items.push(<li key={`events-how-icon-${index}`}>Card {index + 1} icon</li>);
+                                    }
+                                    if (error.title) {
+                                        items.push(<li key={`events-how-title-${index}`}>Card {index + 1} title</li>);
+                                    }
+                                    if (error.description) {
+                                        items.push(<li key={`events-how-description-${index}`}>Card {index + 1} description</li>);
+                                    }
+                                    const highlightErrors = Array.isArray(error.highlights)
+                                        ? (error.highlights as Array<{ value?: { message?: string } | undefined } | undefined>)
+                                        : [];
+                                    highlightErrors.forEach((highlightError, highlightIndex) => {
+                                        if (highlightError?.value) {
+                                            items.push(
+                                                <li key={`events-how-highlight-${index}-${highlightIndex}`}>
+                                                    Card {index + 1} highlight {highlightIndex + 1}
+                                                </li>
+                                            );
+                                        }
+                                    });
+                                    return items;
+                                })}
+                            </ul>
                         </div>
-                    ))}
+                    ) : null}
                     <Button
-                        type="button"
-                        className="bg-white/10 text-white hover:bg-white/20"
-                        onClick={() => cardFields.append({ ...defaultCard })}
+                        type="submit"
+                        className="w-full bg-white/90 text-black hover:bg-white"
+                        disabled={getLoading || updateLoading}
                     >
-                        Add card
+                        {updateLoading ? "Saving..." : "Save"}
                     </Button>
-                </div>
-                <Button
-                    type="submit"
-                    className="w-full bg-white/90 text-black hover:bg-white"
-                    disabled={getLoading || updateLoading}
-                >
-                    {updateLoading ? "Saving..." : "Save"}
-                </Button>
                 </form>
             )}
         </FormProvider>

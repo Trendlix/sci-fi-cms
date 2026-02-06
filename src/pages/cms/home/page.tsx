@@ -1,9 +1,9 @@
-import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldContent, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FormProvider, useForm } from "react-hook-form";
+import { FormProvider, useForm, useFormState } from "react-hook-form";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
@@ -14,8 +14,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import clsx from "clsx";
 
 export const HeroZodValidationSchema = z.object({
-    title: z.array(z.string().min(1, "Title is required")).length(6),
-    description: z.string().min(10),
+    title: z.array(z.string().trim().min(1, "Title is required")).length(6, "All six title words are required"),
+    description: z
+        .string()
+        .trim()
+        .min(1, "Description is required")
+        .min(10, "Description must be at least 10 characters"),
 })
 
 type HeroFormValues = z.infer<typeof HeroZodValidationSchema>;
@@ -40,6 +44,10 @@ const HeroPage = () => {
     })
 
     const { reset } = heroForm;
+    const { isDirty, dirtyFields, errors, isSubmitted } = useFormState({ control: heroForm.control });
+    const isFormDirty = isDirty || Object.keys(dirtyFields).length > 0;
+    const titleErrors = Array.isArray(errors.title) ? errors.title : [];
+    const descriptionError = errors.description;
 
     useEffect(() => {
         let isActive = true;
@@ -90,16 +98,16 @@ const HeroPage = () => {
                         {Array.from({ length: 6 }).map((_, index) => (
                             <Field key={`title-${index}`}>
                                 <FieldLabel htmlFor={`title-${index}`} className="text-white/80">
-                                    Title chunk {index + 1} <span className="text-white">*</span>
+                                    Title chunk {index + 1} <span className="text-white">*</span> (required)
                                 </FieldLabel>
                                 <FieldContent>
                                     <Input
                                         id={`title-${index}`}
                                         placeholder={`Word ${index + 1}`}
                                         className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                        required
                                         {...heroForm.register(`title.${index}`)}
                                     />
-                                    <FieldError errors={[heroForm.formState.errors.title?.[index]]} />
                                 </FieldContent>
                             </Field>
                         ))}
@@ -107,23 +115,34 @@ const HeroPage = () => {
                     <FieldGroup>
                         <Field>
                             <FieldLabel htmlFor="description" className="text-white/80">
-                                Description <span className="text-white">*</span>
+                                Description <span className="text-white">*</span> (at least 10 characters)
                             </FieldLabel>
                             <FieldContent>
                                 <Textarea
                                     id="description"
                                     placeholder="Enter description"
                                     className="min-h-28 border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                    required
                                     {...heroForm.register("description")}
                                 />
-                                <FieldError errors={[heroForm.formState.errors.description]} />
                             </FieldContent>
                         </Field>
                     </FieldGroup>
+                    {isSubmitted && (titleErrors.some(Boolean) || !!descriptionError) ? (
+                        <div className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
+                            <p className="font-medium">Please fix the following fields:</p>
+                            <ul className="mt-2 list-disc pl-5">
+                                {titleErrors.map((error, index) =>
+                                    error ? <li key={`hero-title-error-${index}`}>Title chunk {index + 1}</li> : null
+                                )}
+                                {descriptionError ? <li>Description</li> : null}
+                            </ul>
+                        </div>
+                    ) : null}
                     <Button
                         type="submit"
                         className={clsx("w-full bg-white/90 text-black hover:bg-white")}
-                        disabled={getLoading || updateLoading}
+                        disabled={getLoading || updateLoading || !isFormDirty}
                     >
                         {updateLoading ? "Saving..." : "Save"}
                     </Button>

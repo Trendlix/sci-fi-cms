@@ -34,7 +34,7 @@ export const useHomeHorizontalStore = create<HorizontalState>((set, get) => ({
                 cache: "no-store",
                 headers: getAuthHeaders(),
             });
-            const payload = await parseApiResponse<HorizontalSection[]>(response, { showToast: false });
+            const payload = await parseApiResponse<HorizontalSection[]>(response, { showToast: false, allowNotFound: true });
             set((state) => ({
                 data: {
                     ...state.data,

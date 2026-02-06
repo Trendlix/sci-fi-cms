@@ -1,4 +1,4 @@
-import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldContent, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -60,6 +60,8 @@ const SeoSectionForm = ({ section, title, subtitle }: SeoSectionFormProps) => {
         () => keywordsFieldArray.fields.map((item) => item.value),
         [keywordsFieldArray.fields]
     );
+    const { errors, isSubmitted } = form.formState;
+    const hasSubmitErrors = !!errors.filesAlt || !!errors.title || !!errors.description || !!errors.keywords;
 
     useEffect(() => {
         void get(section);
@@ -125,7 +127,7 @@ const SeoSectionForm = ({ section, title, subtitle }: SeoSectionFormProps) => {
                     <FieldGroup className="grid gap-4 md:grid-cols-2">
                         <Field>
                             <FieldLabel htmlFor={`${section}-files-alt`} className="text-white/80">
-                                Files Alt <span className="text-white">*</span>
+                                Files Alt <span className="text-white">*</span> (required)
                             </FieldLabel>
                             <FieldContent>
                                 <Input
@@ -134,12 +136,11 @@ const SeoSectionForm = ({ section, title, subtitle }: SeoSectionFormProps) => {
                                     className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
                                     {...form.register("filesAlt")}
                                 />
-                                <FieldError errors={[form.formState.errors.filesAlt]} />
                             </FieldContent>
                         </Field>
                         <Field>
                             <FieldLabel htmlFor={`${section}-title`} className="text-white/80">
-                                Title <span className="text-white">*</span>
+                                Title <span className="text-white">*</span> (required)
                             </FieldLabel>
                             <FieldContent>
                                 <Input
@@ -148,13 +149,12 @@ const SeoSectionForm = ({ section, title, subtitle }: SeoSectionFormProps) => {
                                     className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
                                     {...form.register("title")}
                                 />
-                                <FieldError errors={[form.formState.errors.title]} />
                             </FieldContent>
                         </Field>
                     </FieldGroup>
                     <Field>
                         <FieldLabel htmlFor={`${section}-description`} className="text-white/80">
-                            Description <span className="text-white">*</span>
+                            Description <span className="text-white">*</span> (required)
                         </FieldLabel>
                         <FieldContent>
                             <Textarea
@@ -163,11 +163,10 @@ const SeoSectionForm = ({ section, title, subtitle }: SeoSectionFormProps) => {
                                 className="min-h-28 border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
                                 {...form.register("description")}
                             />
-                            <FieldError errors={[form.formState.errors.description]} />
                         </FieldContent>
                     </Field>
                     <Field>
-                        <FieldLabel className="text-white/80">Keywords</FieldLabel>
+                        <FieldLabel className="text-white/80">Keywords <span className="text-white">*</span> (at least 1)</FieldLabel>
                         <FieldContent>
                             <div className="space-y-3">
                                 <div className="flex flex-wrap gap-2">
@@ -208,10 +207,20 @@ const SeoSectionForm = ({ section, title, subtitle }: SeoSectionFormProps) => {
                                         Add
                                     </Button>
                                 </div>
-                                <FieldError errors={[form.formState.errors.keywords]} />
                             </div>
                         </FieldContent>
                     </Field>
+                    {isSubmitted && hasSubmitErrors ? (
+                        <div className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
+                            <p className="font-medium">Please fix the following fields:</p>
+                            <ul className="mt-2 list-disc pl-5">
+                                {errors.filesAlt ? <li>Files Alt</li> : null}
+                                {errors.title ? <li>Title</li> : null}
+                                {errors.description ? <li>Description</li> : null}
+                                {errors.keywords ? <li>Keywords</li> : null}
+                            </ul>
+                        </div>
+                    ) : null}
                     <Button
                         type="submit"
                         className="w-full bg-white/90 text-black hover:bg-white"

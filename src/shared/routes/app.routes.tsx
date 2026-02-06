@@ -7,6 +7,14 @@ const AppRoutes = () => {
     return (
         <BrowserRouter>
             <Routes>
+                <Route
+                    path="/"
+                    element={
+                        <ProtectRoutes>
+                            <Navigate to="/cms/home" replace />
+                        </ProtectRoutes>
+                    }
+                />
                 {AuthRoutes()}
                 <Route element={<ProtectRoutes><Outlet /></ProtectRoutes>}>
                     {CmsRoutes()}

@@ -1,4 +1,4 @@
-import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldContent, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import BasicRichEditor from "@/components/tiptap/BasicRichEditor";
 import { Button } from "@/components/ui/button";
@@ -138,7 +138,7 @@ type HighlightsListProps = {
 };
 
 const HighlightsList = ({ cardIndex }: HighlightsListProps) => {
-    const { control, register, formState } = useFormContext<EventUpcomingFormValues>();
+    const { control, register } = useFormContext<EventUpcomingFormValues>();
     const highlightsFieldArray = useFieldArray({
         control,
         name: `cards.${cardIndex}.highlights`,
@@ -154,7 +154,6 @@ const HighlightsList = ({ cardIndex }: HighlightsListProps) => {
                             className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
                             {...register(`cards.${cardIndex}.highlights.${index}.value`)}
                         />
-                        <FieldError errors={[formState.errors.cards?.[cardIndex]?.highlights?.[index]?.value]} />
                     </div>
                     <Button
                         type="button"
@@ -191,6 +190,9 @@ const EventsUpcoming = () => {
     });
 
     const cardsValue = useWatch({ control: upcomingForm.control, name: "cards" });
+    const { errors, isSubmitted } = upcomingForm.formState;
+    const cardErrors = Array.isArray(errors.cards) ? errors.cards : [];
+    const hasSubmitErrors = cardErrors.some(Boolean);
 
     const cardFields = useFieldArray({
         control: upcomingForm.control,
@@ -264,166 +266,204 @@ const EventsUpcoming = () => {
                 <LoadingSkeleton isRtl={isRtl} />
             ) : (
                 <form onSubmit={upcomingForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
-                <CommonLanguageSwitcherCheckbox />
-                <div className="space-y-1 text-white">
-                    <h1 className="text-2xl font-semibold text-white">Events Upcoming</h1>
-                    <p className="text-sm text-white/70">Add upcoming event details</p>
-                </div>
-                <div className="space-y-6">
-                    {cardFields.fields.map((field, index) => {
-                        const currentTypeValue = cardsValue?.[index]?.type ?? "";
-                        const mergedTypes = buildTypeOptions(currentTypeValue);
-                        const descriptionValue = cardsValue?.[index]?.description ?? "";
+                    <CommonLanguageSwitcherCheckbox />
+                    <div className="space-y-1 text-white">
+                        <h1 className="text-2xl font-semibold text-white">Events Upcoming</h1>
+                        <p className="text-sm text-white/70">Add upcoming event details</p>
+                    </div>
+                    <div className="space-y-6">
+                        {cardFields.fields.map((field, index) => {
+                            const currentTypeValue = cardsValue?.[index]?.type ?? "";
+                            const mergedTypes = buildTypeOptions(currentTypeValue);
+                            const descriptionValue = cardsValue?.[index]?.description ?? "";
 
-                        return (
-                            <div key={field.id} className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
-                                <div className="flex items-center justify-between">
-                                    <h2 className="text-lg font-semibold text-white">Card {index + 1}</h2>
-                                    <Button
-                                        type="button"
-                                        className="bg-white/10 text-white hover:bg-white/20"
-                                        disabled={cardFields.fields.length <= 1}
-                                        onClick={() => cardFields.remove(index)}
-                                    >
-                                        Remove card
-                                    </Button>
+                            return (
+                                <div key={field.id} className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
+                                    <div className="flex items-center justify-between">
+                                        <h2 className="text-lg font-semibold text-white">Card {index + 1}</h2>
+                                        <Button
+                                            type="button"
+                                            className="bg-white/10 text-white hover:bg-white/20"
+                                            disabled={cardFields.fields.length <= 1}
+                                            onClick={() => cardFields.remove(index)}
+                                        >
+                                            Remove card
+                                        </Button>
+                                    </div>
+                                    <Field>
+                                        <FieldLabel className="text-white/80">
+                                            File <span className="text-white">*</span> (required)
+                                        </FieldLabel>
+                                        <FieldContent>
+                                            <FileUploader
+                                                control={upcomingForm.control}
+                                                name={`cards.${index}.fileFile`}
+                                                inputId={`events-upcoming-file-${index}`}
+                                                existingUrl={currentData?.[index]?.file?.url}
+                                            />
+                                        </FieldContent>
+                                    </Field>
+                                    <Field>
+                                        <FieldLabel htmlFor={`events-upcoming-type-${index}`} className="text-white/80">
+                                            Type <span className="text-white">*</span> (required)
+                                        </FieldLabel>
+                                        <FieldContent>
+                                            <Controller
+                                                control={upcomingForm.control}
+                                                name={`cards.${index}.type`}
+                                                render={({ field: controllerField }) => (
+                                                    <Combobox
+                                                        items={mergedTypes}
+                                                        value={controllerField.value || ""}
+                                                        onValueChange={(value) => controllerField.onChange(value ?? "")}
+                                                        onInputValueChange={(value) => controllerField.onChange(value)}
+                                                    >
+                                                        <ComboboxInput
+                                                            id={`events-upcoming-type-${index}`}
+                                                            placeholder={typesLoading ? "Loading types..." : "Select or type a type"}
+                                                            showClear
+                                                            disabled={typesLoading}
+                                                            className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40 rounded-xl"
+                                                        />
+                                                        <ComboboxContent className="border border-white/15 bg-black/80 text-white backdrop-blur-sm">
+                                                            <ComboboxEmpty className="text-white/60">No types found.</ComboboxEmpty>
+                                                            <ComboboxList>
+                                                                {(item) => (
+                                                                    <ComboboxItem
+                                                                        key={item}
+                                                                        value={item}
+                                                                        className="data-highlighted:bg-white/10 data-highlighted:text-white"
+                                                                    >
+                                                                        {item}
+                                                                    </ComboboxItem>
+                                                                )}
+                                                            </ComboboxList>
+                                                        </ComboboxContent>
+                                                    </Combobox>
+                                                )}
+                                            />
+                                        </FieldContent>
+                                    </Field>
+                                    <FieldGroup className="grid gap-4 md:grid-cols-2">
+                                        <Field>
+                                            <FieldLabel htmlFor={`events-upcoming-tag-${index}`} className="text-white/80">
+                                                Tag <span className="text-white">*</span> (required)
+                                            </FieldLabel>
+                                            <FieldContent>
+                                                <Input
+                                                    id={`events-upcoming-tag-${index}`}
+                                                    placeholder="Enter tag"
+                                                    className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                                    {...upcomingForm.register(`cards.${index}.tag`)}
+                                                />
+                                            </FieldContent>
+                                        </Field>
+                                        <Field>
+                                            <FieldLabel htmlFor={`events-upcoming-title-${index}`} className="text-white/80">
+                                                Title <span className="text-white">*</span> (required)
+                                            </FieldLabel>
+                                            <FieldContent>
+                                                <Input
+                                                    id={`events-upcoming-title-${index}`}
+                                                    placeholder="Enter title"
+                                                    className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                                    {...upcomingForm.register(`cards.${index}.title`)}
+                                                />
+                                            </FieldContent>
+                                        </Field>
+                                    </FieldGroup>
+                                    <Field>
+                                        <FieldLabel className="text-white/80">
+                                            Description <span className="text-white">*</span> (at least 10 characters)
+                                        </FieldLabel>
+                                        <FieldContent>
+                                            <BasicRichEditor
+                                                name={`cards.${index}.description`}
+                                                value={descriptionValue ?? ""}
+                                            />
+                                        </FieldContent>
+                                    </Field>
+                                    <Field>
+                                        <FieldLabel htmlFor={`events-upcoming-cta-${index}`} className="text-white/80">
+                                            CTA <span className="text-white">*</span> (required)
+                                        </FieldLabel>
+                                        <FieldContent>
+                                            <Input
+                                                id={`events-upcoming-cta-${index}`}
+                                                placeholder="Enter CTA"
+                                                className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                                {...upcomingForm.register(`cards.${index}.cta`)}
+                                            />
+                                        </FieldContent>
+                                    </Field>
+                                    <Field>
+                                        <FieldLabel className="text-white/80">Highlights <span className="text-white">*</span> (at least 1)</FieldLabel>
+                                        <FieldContent>
+                                            <HighlightsList cardIndex={index} />
+                                        </FieldContent>
+                                    </Field>
                                 </div>
-                                <Field>
-                                    <FieldLabel className="text-white/80">
-                                        File <span className="text-white">*</span>
-                                    </FieldLabel>
-                                    <FieldContent>
-                                        <FileUploader
-                                            control={upcomingForm.control}
-                                            name={`cards.${index}.fileFile`}
-                                            inputId={`events-upcoming-file-${index}`}
-                                            existingUrl={currentData?.[index]?.file?.url}
-                                        />
-                                        <FieldError errors={[upcomingForm.formState.errors.cards?.[index]?.fileFile]} />
-                                    </FieldContent>
-                                </Field>
-                                <Field>
-                                    <FieldLabel htmlFor={`events-upcoming-type-${index}`} className="text-white/80">
-                                        Type <span className="text-white">*</span>
-                                    </FieldLabel>
-                                    <FieldContent>
-                                        <Controller
-                                            control={upcomingForm.control}
-                                            name={`cards.${index}.type`}
-                                            render={({ field: controllerField }) => (
-                                                <Combobox
-                                                    items={mergedTypes}
-                                                    value={controllerField.value || ""}
-                                                    onValueChange={(value) => controllerField.onChange(value ?? "")}
-                                                    onInputValueChange={(value) => controllerField.onChange(value)}
-                                                >
-                                                    <ComboboxInput
-                                                        id={`events-upcoming-type-${index}`}
-                                                        placeholder={typesLoading ? "Loading types..." : "Select or type a type"}
-                                                        showClear
-                                                        disabled={typesLoading}
-                                                        className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40 rounded-xl"
-                                                    />
-                                                    <ComboboxContent className="border border-white/15 bg-black/80 text-white backdrop-blur-sm">
-                                                        <ComboboxEmpty className="text-white/60">No types found.</ComboboxEmpty>
-                                                        <ComboboxList>
-                                                            {(item) => (
-                                                                <ComboboxItem
-                                                                    key={item}
-                                                                    value={item}
-                                                                    className="data-highlighted:bg-white/10 data-highlighted:text-white"
-                                                                >
-                                                                    {item}
-                                                                </ComboboxItem>
-                                                            )}
-                                                        </ComboboxList>
-                                                    </ComboboxContent>
-                                                </Combobox>
-                                            )}
-                                        />
-                                        <FieldError errors={[upcomingForm.formState.errors.cards?.[index]?.type]} />
-                                    </FieldContent>
-                                </Field>
-                                <FieldGroup className="grid gap-4 md:grid-cols-2">
-                                    <Field>
-                                        <FieldLabel htmlFor={`events-upcoming-tag-${index}`} className="text-white/80">
-                                            Tag <span className="text-white">*</span>
-                                        </FieldLabel>
-                                        <FieldContent>
-                                            <Input
-                                                id={`events-upcoming-tag-${index}`}
-                                                placeholder="Enter tag"
-                                                className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                                                {...upcomingForm.register(`cards.${index}.tag`)}
-                                            />
-                                            <FieldError errors={[upcomingForm.formState.errors.cards?.[index]?.tag]} />
-                                        </FieldContent>
-                                    </Field>
-                                    <Field>
-                                        <FieldLabel htmlFor={`events-upcoming-title-${index}`} className="text-white/80">
-                                            Title <span className="text-white">*</span>
-                                        </FieldLabel>
-                                        <FieldContent>
-                                            <Input
-                                                id={`events-upcoming-title-${index}`}
-                                                placeholder="Enter title"
-                                                className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                                                {...upcomingForm.register(`cards.${index}.title`)}
-                                            />
-                                            <FieldError errors={[upcomingForm.formState.errors.cards?.[index]?.title]} />
-                                        </FieldContent>
-                                    </Field>
-                                </FieldGroup>
-                                <Field>
-                                    <FieldLabel className="text-white/80">
-                                        Description <span className="text-white">*</span>
-                                    </FieldLabel>
-                                    <FieldContent>
-                                        <BasicRichEditor
-                                            name={`cards.${index}.description`}
-                                            value={descriptionValue ?? ""}
-                                        />
-                                        <FieldError errors={[upcomingForm.formState.errors.cards?.[index]?.description]} />
-                                    </FieldContent>
-                                </Field>
-                                <Field>
-                                    <FieldLabel htmlFor={`events-upcoming-cta-${index}`} className="text-white/80">
-                                        CTA <span className="text-white">*</span>
-                                    </FieldLabel>
-                                    <FieldContent>
-                                        <Input
-                                            id={`events-upcoming-cta-${index}`}
-                                            placeholder="Enter CTA"
-                                            className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                                            {...upcomingForm.register(`cards.${index}.cta`)}
-                                        />
-                                        <FieldError errors={[upcomingForm.formState.errors.cards?.[index]?.cta]} />
-                                    </FieldContent>
-                                </Field>
-                                <Field>
-                                    <FieldLabel className="text-white/80">Highlights</FieldLabel>
-                                    <FieldContent>
-                                        <HighlightsList cardIndex={index} />
-                                    </FieldContent>
-                                </Field>
-                            </div>
-                        );
-                    })}
+                            );
+                        })}
+                        <Button
+                            type="button"
+                            className="bg-white/10 text-white hover:bg-white/20"
+                            onClick={() => cardFields.append(buildEmptyCard())}
+                        >
+                            Add card
+                        </Button>
+                    </div>
+                    {isSubmitted && hasSubmitErrors ? (
+                        <div className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
+                            <p className="font-medium">Please fix the following fields:</p>
+                            <ul className="mt-2 list-disc pl-5">
+                                {cardErrors.map((error, index) => {
+                                    if (!error) {
+                                        return null;
+                                    }
+                                    const items = [];
+                                    if (error.fileFile) {
+                                        items.push(<li key={`events-upcoming-file-${index}`}>Card {index + 1} file</li>);
+                                    }
+                                    if (error.type) {
+                                        items.push(<li key={`events-upcoming-type-${index}`}>Card {index + 1} type</li>);
+                                    }
+                                    if (error.tag) {
+                                        items.push(<li key={`events-upcoming-tag-${index}`}>Card {index + 1} tag</li>);
+                                    }
+                                    if (error.title) {
+                                        items.push(<li key={`events-upcoming-title-${index}`}>Card {index + 1} title</li>);
+                                    }
+                                    if (error.description) {
+                                        items.push(<li key={`events-upcoming-description-${index}`}>Card {index + 1} description</li>);
+                                    }
+                                    if (error.cta) {
+                                        items.push(<li key={`events-upcoming-cta-${index}`}>Card {index + 1} CTA</li>);
+                                    }
+                                    if (Array.isArray(error.highlights)) {
+                                        // @ts-expect-error
+                                        error.highlights.forEach((highlightError, highlightIndex) => {
+                                            if (highlightError?.value) {
+                                                items.push(
+                                                    <li key={`events-upcoming-highlight-${index}-${highlightIndex}`}>
+                                                        Card {index + 1} highlight {highlightIndex + 1}
+                                                    </li>
+                                                );
+                                            }
+                                        });
+                                    }
+                                    return items;
+                                })}
+                            </ul>
+                        </div>
+                    ) : null}
                     <Button
-                        type="button"
-                        className="bg-white/10 text-white hover:bg-white/20"
-                        onClick={() => cardFields.append(buildEmptyCard())}
+                        type="submit"
+                        className="w-full bg-white/90 text-black hover:bg-white"
+                        disabled={getLoading || updateLoading}
                     >
-                        Add card
+                        {updateLoading ? "Saving..." : "Save"}
                     </Button>
-                </div>
-                <Button
-                    type="submit"
-                    className="w-full bg-white/90 text-black hover:bg-white"
-                    disabled={getLoading || updateLoading}
-                >
-                    {updateLoading ? "Saving..." : "Save"}
-                </Button>
                 </form>
             )}
         </FormProvider>

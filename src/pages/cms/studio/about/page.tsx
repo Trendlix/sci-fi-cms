@@ -1,4 +1,4 @@
-import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldContent, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import BasicRichEditor from "@/components/tiptap/BasicRichEditor";
 import { Button } from "@/components/ui/button";
@@ -136,6 +136,9 @@ const StudioAbout = () => {
     });
     const cardsValue = useWatch({ control: aboutForm.control, name: "cards" });
     const descriptionValue = useWatch({ control: aboutForm.control, name: "description" });
+    const { errors, isSubmitted } = aboutForm.formState;
+    const cardErrors = Array.isArray(errors.cards) ? errors.cards : [];
+    const hasSubmitErrors = cardErrors.some(Boolean) || !!errors.description;
 
     const cardFields = useFieldArray({
         control: aboutForm.control,
@@ -177,7 +180,42 @@ const StudioAbout = () => {
     }, [get, language, aboutForm]);
 
     const onSubmit = async (formData: StudioAboutFormValues) => {
+        const missingImages: number[] = [];
+        formData.cards.forEach((card, index) => {
+            const hasExisting = !!currentData?.cards?.[index]?.file?.url;
+            if (!card.fileFile && !hasExisting) {
+                missingImages.push(index);
+            }
+        });
+        if (missingImages.length > 0) {
+            missingImages.forEach((index) => {
+                aboutForm.setError(`cards.${index}.fileFile`, {
+                    type: "manual",
+                    message: "Image is required",
+                });
+            });
+            return;
+        }
         await update(formData);
+        const refreshed = await get().catch(() => null);
+        if (!refreshed) {
+            aboutForm.reset(STUDIO_ABOUT_DEFAULT_VALUES);
+            setCurrentData(null);
+            return;
+        }
+        setCurrentData(refreshed);
+        aboutForm.reset({
+            description: refreshed.description ?? "",
+            cards: refreshed.cards?.length
+                ? refreshed.cards.map((card) => ({
+                    tag: card.tag ?? "",
+                    icon: card.icon ?? "",
+                    title: card.title ?? "",
+                    description: card.description ?? "",
+                    fileFile: undefined,
+                }))
+                : [defaultCard],
+        });
     };
 
     return (
@@ -193,11 +231,10 @@ const StudioAbout = () => {
                     </div>
                     <Field>
                         <FieldLabel htmlFor="studio-about-description" className="text-white/80">
-                            Description <span className="text-white">*</span>
+                            Description <span className="text-white">*</span> (at least 10 characters)
                         </FieldLabel>
                         <FieldContent>
                             <BasicRichEditor name="description" value={descriptionValue ?? ""} />
-                            <FieldError errors={[aboutForm.formState.errors.description]} />
                         </FieldContent>
                     </Field>
                     <div className="space-y-6">
@@ -218,63 +255,9 @@ const StudioAbout = () => {
                                     </Button>
                                 </div>
                                 <FieldGroup className="grid gap-4 md:grid-cols-2">
-                                    <Field>
-                                        <FieldLabel htmlFor={`studio-about-tag-${index}`} className="text-white/80">
-                                            Tag <span className="text-white">*</span>
-                                        </FieldLabel>
-                                        <FieldContent>
-                                            <Input
-                                                id={`studio-about-tag-${index}`}
-                                                placeholder="Tag"
-                                                className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                                                {...aboutForm.register(`cards.${index}.tag`)}
-                                            />
-                                            <FieldError errors={[aboutForm.formState.errors.cards?.[index]?.tag]} />
-                                        </FieldContent>
-                                    </Field>
-                                    <Field>
-                                        <FieldLabel htmlFor={`studio-about-icon-${index}`} className="text-white/80">
-                                            Icon <span className="text-white">*</span>
-                                        </FieldLabel>
-                                        <FieldContent>
-                                            <Input
-                                                id={`studio-about-icon-${index}`}
-                                                placeholder="Icon name"
-                                                className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                                                {...aboutForm.register(`cards.${index}.icon`)}
-                                            />
-                                            <FieldError errors={[aboutForm.formState.errors.cards?.[index]?.icon]} />
-                                        </FieldContent>
-                                    </Field>
-                                    <Field>
-                                        <FieldLabel htmlFor={`studio-about-title-${index}`} className="text-white/80">
-                                            Title <span className="text-white">*</span>
-                                        </FieldLabel>
-                                        <FieldContent>
-                                            <Input
-                                                id={`studio-about-title-${index}`}
-                                                placeholder="Card title"
-                                                className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                                                {...aboutForm.register(`cards.${index}.title`)}
-                                            />
-                                            <FieldError errors={[aboutForm.formState.errors.cards?.[index]?.title]} />
-                                        </FieldContent>
-                                    </Field>
-                                    <Field className="md:col-span-2">
-                                        <FieldLabel htmlFor={`studio-about-description-${index}`} className="text-white/80">
-                                            Description <span className="text-white">*</span>
-                                        </FieldLabel>
-                                        <FieldContent>
-                                            <BasicRichEditor
-                                                name={`cards.${index}.description`}
-                                                value={cardsValue?.[index]?.description ?? ""}
-                                            />
-                                            <FieldError errors={[aboutForm.formState.errors.cards?.[index]?.description]} />
-                                        </FieldContent>
-                                    </Field>
                                     <Field className="md:col-span-2">
                                         <FieldLabel htmlFor={`studio-about-file-${index}`} className="text-white/80">
-                                            Image
+                                            Image <span className="text-white">*</span> (required)
                                         </FieldLabel>
                                         <FieldContent>
                                             <CardFileUploader
@@ -297,7 +280,56 @@ const StudioAbout = () => {
                                                     });
                                                 }}
                                             />
-                                            <FieldError errors={[aboutForm.formState.errors.cards?.[index]?.fileFile]} />
+                                        </FieldContent>
+                                    </Field>
+                                    <Field>
+                                        <FieldLabel htmlFor={`studio-about-tag-${index}`} className="text-white/80">
+                                            Tag <span className="text-white">*</span> (required)
+                                        </FieldLabel>
+                                        <FieldContent>
+                                            <Input
+                                                id={`studio-about-tag-${index}`}
+                                                placeholder="Tag"
+                                                className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                                {...aboutForm.register(`cards.${index}.tag`)}
+                                            />
+                                        </FieldContent>
+                                    </Field>
+                                    <Field>
+                                        <FieldLabel htmlFor={`studio-about-icon-${index}`} className="text-white/80">
+                                            Icon <span className="text-white">*</span> (required)
+                                        </FieldLabel>
+                                        <FieldContent>
+                                            <Input
+                                                id={`studio-about-icon-${index}`}
+                                                placeholder="Icon name"
+                                                className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                                {...aboutForm.register(`cards.${index}.icon`)}
+                                            />
+                                        </FieldContent>
+                                    </Field>
+                                    <Field>
+                                        <FieldLabel htmlFor={`studio-about-title-${index}`} className="text-white/80">
+                                            Title <span className="text-white">*</span> (at least 3 characters)
+                                        </FieldLabel>
+                                        <FieldContent>
+                                            <Input
+                                                id={`studio-about-title-${index}`}
+                                                placeholder="Card title"
+                                                className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                                {...aboutForm.register(`cards.${index}.title`)}
+                                            />
+                                        </FieldContent>
+                                    </Field>
+                                    <Field className="md:col-span-2">
+                                        <FieldLabel htmlFor={`studio-about-description-${index}`} className="text-white/80">
+                                            Description <span className="text-white">*</span> (required)
+                                        </FieldLabel>
+                                        <FieldContent>
+                                            <BasicRichEditor
+                                                name={`cards.${index}.description`}
+                                                value={cardsValue?.[index]?.description ?? ""}
+                                            />
                                         </FieldContent>
                                     </Field>
                                 </FieldGroup>
@@ -311,6 +343,38 @@ const StudioAbout = () => {
                     >
                         Add card
                     </Button>
+                    {isSubmitted && hasSubmitErrors ? (
+                        <div className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
+                            <p className="font-medium">Please fix the following fields:</p>
+                            <ul className="mt-2 list-disc pl-5">
+                                {errors.description ? <li>Description</li> : null}
+                                {cardErrors.map((error, index) => {
+                                    if (!error) {
+                                        return null;
+                                    }
+                                    const items = [];
+                                    if (error.fileFile) {
+                                        items.push(<li key={`studio-about-file-${index}`}>Card {index + 1} image</li>);
+                                    }
+                                    if (error.tag) {
+                                        items.push(<li key={`studio-about-tag-${index}`}>Card {index + 1} tag</li>);
+                                    }
+                                    if (error.icon) {
+                                        items.push(<li key={`studio-about-icon-${index}`}>Card {index + 1} icon</li>);
+                                    }
+                                    if (error.title) {
+                                        items.push(<li key={`studio-about-title-${index}`}>Card {index + 1} title</li>);
+                                    }
+                                    if (error.description) {
+                                        items.push(
+                                            <li key={`studio-about-description-${index}`}>Card {index + 1} description</li>
+                                        );
+                                    }
+                                    return items;
+                                })}
+                            </ul>
+                        </div>
+                    ) : null}
                     <Button
                         type="submit"
                         className="w-full bg-white/90 text-black hover:bg-white"

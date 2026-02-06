@@ -11,9 +11,23 @@ const ProtectRoutes = ({ children }: PropsWithChildren) => {
     const token = useMemo(() => authToken ?? cookiesToken ?? null, [authToken, cookiesToken]);
     const isTokenValid = token ? verifyToken(token) : false;
     const location = useLocation();
+    const { accountStatus } = useAuth();
+    const cookieUserRaw = Cookies.get("sci_fi_auth_user") ?? Cookies.get("auth_user");
+    const cookieStatus = useMemo(() => {
+        if (!cookieUserRaw) {
+            return null;
+        }
+        try {
+            return JSON.parse(cookieUserRaw).status ?? null;
+        } catch {
+            return null;
+        }
+    }, [cookieUserRaw]);
+    const resolvedStatus = accountStatus ?? cookieStatus;
+    const isActive = resolvedStatus?.toLowerCase() === "active";
 
-    if (!token || !isTokenValid) {
-        if (token && !isTokenValid) {
+    if (!token || !isTokenValid || !isActive) {
+        if (token && (!isTokenValid || !isActive)) {
             Cookies.remove("auth_token");
             Cookies.remove("auth_user");
             Cookies.remove("sci_fi_auth_token");
@@ -23,7 +37,7 @@ const ProtectRoutes = ({ children }: PropsWithChildren) => {
         return <Navigate to="/auth/account" replace />;
     }
 
-    if (token && isTokenValid && location.pathname === "/auth/account") {
+    if (token && isTokenValid && isActive && location.pathname === "/auth/account") {
         return <Navigate to="/cms/home" replace />;
     }
 

@@ -33,6 +33,7 @@ export const getAuthHeaders = (): Record<string, string> => {
 
 type ParseApiOptions = {
     showToast?: boolean;
+    allowNotFound?: boolean;
 };
 
 export const parseApiResponse = async function parseApiResponse<T>(
@@ -41,6 +42,9 @@ export const parseApiResponse = async function parseApiResponse<T>(
 ) {
     const payload = (await response.json()) as ApiResponse<T>;
     if (!response.ok || !payload.ok) {
+        if (options.allowNotFound && (payload.status === 404 || response.status === 404)) {
+            return payload;
+        }
         const message = payload.message?.trim() || "Request failed.";
         if (options.showToast !== false) {
             toastHelper(message, "error");

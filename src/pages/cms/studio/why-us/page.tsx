@@ -1,4 +1,4 @@
-import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldContent, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import BasicRichEditor from "@/components/tiptap/BasicRichEditor";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,9 @@ const StudioWhyUs = () => {
         mode: "onChange",
     });
     const descriptionValue = useWatch({ control: whyUsForm.control, name: "description" });
+    const { errors, isSubmitted } = whyUsForm.formState;
+    const lineErrors = Array.isArray(errors.lines) ? errors.lines : [];
+    const hasSubmitErrors = lineErrors.some(Boolean) || !!errors.description;
 
     const lineFields = useFieldArray({
         control: whyUsForm.control,
@@ -96,11 +99,10 @@ const StudioWhyUs = () => {
                     </div>
                     <Field>
                         <FieldLabel htmlFor="studio-why-us-description" className="text-white/80">
-                            Description <span className="text-white">*</span>
+                            Description <span className="text-white">*</span> (at least 10 characters)
                         </FieldLabel>
                         <FieldContent>
                             <BasicRichEditor name="description" value={descriptionValue ?? ""} />
-                            <FieldError errors={[whyUsForm.formState.errors.description]} />
                         </FieldContent>
                     </Field>
                     <div className="space-y-6">
@@ -120,7 +122,7 @@ const StudioWhyUs = () => {
                                 <FieldGroup className="grid gap-4 md:grid-cols-2">
                                     <Field>
                                         <FieldLabel htmlFor={`studio-why-us-icon-${index}`} className="text-white/80">
-                                            Icon <span className="text-white">*</span>
+                                            Icon <span className="text-white">*</span> (required)
                                         </FieldLabel>
                                         <FieldContent>
                                             <Input
@@ -129,25 +131,44 @@ const StudioWhyUs = () => {
                                                 className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
                                                 {...whyUsForm.register(`lines.${index}.icon`)}
                                             />
-                                            <FieldError errors={[whyUsForm.formState.errors.lines?.[index]?.icon]} />
                                         </FieldContent>
                                     </Field>
                                     <Field className="md:col-span-2">
                                         <FieldLabel htmlFor={`studio-why-us-line-${index}`} className="text-white/80">
-                                            Line <span className="text-white">*</span>
+                                            Line <span className="text-white">*</span> (at least 3 characters)
                                         </FieldLabel>
                                         <FieldContent>
                                             <BasicRichEditor
                                                 name={`lines.${index}.line`}
                                                 value={whyUsForm.watch(`lines.${index}.line`) ?? ""}
                                             />
-                                            <FieldError errors={[whyUsForm.formState.errors.lines?.[index]?.line]} />
                                         </FieldContent>
                                     </Field>
                                 </FieldGroup>
                             </div>
                         ))}
                     </div>
+                    {isSubmitted && hasSubmitErrors ? (
+                        <div className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
+                            <p className="font-medium">Please fix the following fields:</p>
+                            <ul className="mt-2 list-disc pl-5">
+                                {errors.description ? <li>Description</li> : null}
+                                {lineErrors.map((error, index) => {
+                                    if (!error) {
+                                        return null;
+                                    }
+                                    const items = [];
+                                    if (error.icon) {
+                                        items.push(<li key={`why-us-icon-${index}`}>Line {index + 1} icon</li>);
+                                    }
+                                    if (error.line) {
+                                        items.push(<li key={`why-us-line-${index}`}>Line {index + 1} line</li>);
+                                    }
+                                    return items;
+                                })}
+                            </ul>
+                        </div>
+                    ) : null}
                     <Button
                         type="button"
                         className="bg-white/10 text-white hover:bg-white/20"

@@ -1,4 +1,4 @@
-import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldContent, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import {
@@ -70,7 +70,7 @@ type LinkTypeFieldProps = {
 const LinkTypeField = ({ control, resetField, onChangeType }: LinkTypeFieldProps) => (
     <Field>
         <FieldLabel htmlFor="pre-value-link-type" className="text-white/80">
-            Type <span className="text-white">*</span>
+            Type <span className="text-white">*</span> (required)
         </FieldLabel>
         <FieldContent>
             <Controller
@@ -109,8 +109,6 @@ type LinkTargetFieldProps = {
     register: ReturnType<typeof useForm<AboutPreValueFormValues>>["register"];
     linkType: LinkTypeValue;
     linkUrl?: string;
-    linkUrlError?: { message?: string };
-    linkFileError?: { message?: string };
     filePreviewUrl: string | null;
     onOpenPreview: () => void;
 };
@@ -120,22 +118,20 @@ const LinkTargetField = ({
     register,
     linkType,
     linkUrl,
-    linkUrlError,
-    linkFileError,
     filePreviewUrl,
     onOpenPreview,
 }: LinkTargetFieldProps) => (
     <Field>
         <FieldLabel htmlFor="pre-value-link-input" className="text-white/80">
-            {linkType === "link" ? "Paste link" : `Upload ${linkType}`}
-            <span className="text-white">*</span>
+            {linkType === "link" ? "Link URL" : `File (${linkType})`}
+            <span className="text-white">*</span> (required)
         </FieldLabel>
         <FieldContent>
             {linkType === "link" ? (
                 <div className="flex items-center gap-3">
                     <InputGroup className="border-white/20 bg-white/5 text-white focus-visible:border-white/40">
                         <InputGroupAddon className="text-white/60">
-                            {linkUrl && !linkUrlError ? (
+                            {linkUrl ? (
                                 <a
                                     href={linkUrl}
                                     target="_blank"
@@ -156,7 +152,6 @@ const LinkTargetField = ({
                             {...register("linkUrl")}
                         />
                     </InputGroup>
-                    <FieldError errors={[linkUrlError]} />
                 </div>
             ) : (
                 <Controller
@@ -232,7 +227,6 @@ const LinkTargetField = ({
                                     controllerField.onChange(file ?? undefined);
                                 }}
                             />
-                            <FieldError errors={[linkFileError]} />
                         </div>
                     )}
                 />
@@ -306,8 +300,13 @@ const AboutPreValue = () => {
     const linkFile = useWatch({ control: preValueForm.control, name: "linkFile" });
     const linkUrl = useWatch({ control: preValueForm.control, name: "linkUrl" });
     const descriptionValue = useWatch({ control: preValueForm.control, name: "description" });
-    const linkUrlError = preValueForm.formState.errors.linkUrl;
-    const linkFileError = preValueForm.formState.errors.linkFile;
+    const { errors, isSubmitted } = preValueForm.formState;
+    const titleErrors = Array.isArray(errors.title) ? errors.title : [];
+    const hasSubmitErrors = titleErrors.some(Boolean) ||
+        !!errors.description ||
+        !!errors.linkType ||
+        !!errors.linkUrl ||
+        !!errors.linkFile;
     const savedValuesRef = useRef<Record<LinkTypeValue, { url?: string; file?: File }>>({
         image: {},
         video: {},
@@ -371,7 +370,7 @@ const AboutPreValue = () => {
                         {Array.from({ length: 5 }).map((_, index) => (
                             <Field key={`pre-value-title-${index}`}>
                                 <FieldLabel htmlFor={`pre-value-title-${index}`} className="text-white/80">
-                                    Title chunk {index + 1} <span className="text-white">*</span>
+                                    Title chunk {index + 1} <span className="text-white">*</span> (required)
                                 </FieldLabel>
                                 <FieldContent>
                                     <Input
@@ -380,18 +379,16 @@ const AboutPreValue = () => {
                                         className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
                                         {...preValueForm.register(`title.${index}`)}
                                     />
-                                    <FieldError errors={[preValueForm.formState.errors.title?.[index]]} />
                                 </FieldContent>
                             </Field>
                         ))}
                     </FieldGroup>
                     <Field>
                         <FieldLabel htmlFor="pre-value-description" className="text-white/80">
-                            Description <span className="text-white">*</span>
+                            Description <span className="text-white">*</span> (at least 10 characters)
                         </FieldLabel>
                         <FieldContent>
                             <BasicRichEditor name="description" value={descriptionValue ?? ""} />
-                            <FieldError errors={[preValueForm.formState.errors.description]} />
                         </FieldContent>
                     </Field>
                     <FieldGroup className="grid gap-4 md:grid-cols-[160px_minmax(0,1fr)] items-end">
@@ -405,8 +402,6 @@ const AboutPreValue = () => {
                             register={preValueForm.register}
                             linkType={linkType}
                             linkUrl={linkUrl}
-                            linkUrlError={linkUrlError}
-                            linkFileError={linkFileError}
                             filePreviewUrl={filePreviewUrl}
                             onOpenPreview={() => {
                                 if (!filePreviewUrl) {
@@ -420,6 +415,20 @@ const AboutPreValue = () => {
                             }}
                         />
                     </FieldGroup>
+                    {isSubmitted && hasSubmitErrors ? (
+                        <div className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
+                            <p className="font-medium">Please fix the following fields:</p>
+                            <ul className="mt-2 list-disc pl-5">
+                                {titleErrors.map((error, index) =>
+                                    error ? <li key={`pre-value-title-error-${index}`}>Title chunk {index + 1}</li> : null
+                                )}
+                                {errors.description ? <li>Description</li> : null}
+                                {errors.linkType ? <li>Type</li> : null}
+                                {errors.linkUrl ? <li>Link URL</li> : null}
+                                {errors.linkFile ? <li>File</li> : null}
+                            </ul>
+                        </div>
+                    ) : null}
                     <Button
                         type="submit"
                         className="w-full bg-white/90 text-black hover:bg-white"

@@ -1,4 +1,4 @@
-import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldContent, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import BasicRichEditor from "@/components/tiptap/BasicRichEditor";
 import { Button } from "@/components/ui/button";
@@ -125,6 +125,9 @@ const EventsHero = () => {
         name: "cards",
     });
     const cardsValue = useWatch({ control: heroForm.control, name: "cards" });
+    const { errors, isSubmitted } = heroForm.formState;
+    const cardErrors = Array.isArray(errors.cards) ? errors.cards : [];
+    const hasSubmitErrors = cardErrors.some(Boolean);
 
     useEffect(() => {
         let isActive = true;
@@ -158,7 +161,39 @@ const EventsHero = () => {
     }, [get, language, heroForm]);
 
     const onSubmit = async (formData: EventHeroFormValues) => {
+        const missingFiles: number[] = [];
+        formData.cards.forEach((card, index) => {
+            const hasExisting = !!currentData?.cards?.[index]?.file?.url;
+            if (!card.fileFile && !hasExisting) {
+                missingFiles.push(index);
+            }
+        });
+        if (missingFiles.length > 0) {
+            missingFiles.forEach((index) => {
+                heroForm.setError(`cards.${index}.fileFile`, {
+                    type: "manual",
+                    message: "File is required",
+                });
+            });
+            return;
+        }
         await update(formData);
+        const refreshed = await get().catch(() => null);
+        if (!refreshed) {
+            heroForm.reset({ cards: [defaultCard] });
+            setCurrentData(null);
+            return;
+        }
+        setCurrentData(refreshed);
+        heroForm.reset({
+            cards: refreshed.cards?.length
+                ? refreshed.cards.map((card) => ({
+                    fileFile: undefined,
+                    title: card.title?.length === 8 ? card.title : ["", "", "", "", "", "", "", ""],
+                    description: card.description ?? "",
+                }))
+                : [defaultCard],
+        });
     };
 
     return (
@@ -188,7 +223,7 @@ const EventsHero = () => {
                                 </div>
                                 <Field>
                                     <FieldLabel className="text-white/80">
-                                        File <span className="text-white">*</span>
+                                        File <span className="text-white">*</span> (required)
                                     </FieldLabel>
                                     <FieldContent>
                                         <CardFileUploader
@@ -197,7 +232,6 @@ const EventsHero = () => {
                                             inputId={`events-hero-file-${index}`}
                                             existingUrl={currentData?.cards?.[index]?.file?.url}
                                         />
-                                        <FieldError errors={[heroForm.formState.errors.cards?.[index]?.fileFile]} />
                                     </FieldContent>
                                 </Field>
                                 <FieldGroup className="grid gap-4 md:grid-cols-4">
@@ -207,7 +241,7 @@ const EventsHero = () => {
                                                 htmlFor={`events-hero-card-${index}-title-${titleIndex}`}
                                                 className="text-white/80"
                                             >
-                                                Title {titleIndex + 1} <span className="text-white">*</span>
+                                                Title {titleIndex + 1} <span className="text-white">*</span> (required)
                                             </FieldLabel>
                                             <FieldContent>
                                                 <Input
@@ -216,21 +250,19 @@ const EventsHero = () => {
                                                     className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
                                                     {...heroForm.register(`cards.${index}.title.${titleIndex}`)}
                                                 />
-                                                <FieldError errors={[heroForm.formState.errors.cards?.[index]?.title?.[titleIndex]]} />
                                             </FieldContent>
                                         </Field>
                                     ))}
                                 </FieldGroup>
                                 <Field>
                                     <FieldLabel htmlFor={`events-hero-description-${index}`} className="text-white/80">
-                                        Description <span className="text-white">*</span>
+                                        Description <span className="text-white">*</span> (at least 10 characters)
                                     </FieldLabel>
                                     <FieldContent>
                                         <BasicRichEditor
                                             name={`cards.${index}.description`}
                                             value={cardsValue?.[index]?.description ?? ""}
                                         />
-                                        <FieldError errors={[heroForm.formState.errors.cards?.[index]?.description]} />
                                     </FieldContent>
                                 </Field>
                             </div>
@@ -243,6 +275,40 @@ const EventsHero = () => {
                             Add card
                         </Button>
                     </div>
+                    {isSubmitted && hasSubmitErrors ? (
+                        <div className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
+                            <p className="font-medium">Please fix the following fields:</p>
+                            <ul className="mt-2 list-disc pl-5">
+                                {cardErrors.map((error, index) => {
+                                    if (!error) {
+                                        return null;
+                                    }
+                                    const items = [];
+                                    if (error.fileFile) {
+                                        items.push(<li key={`events-hero-file-${index}`}>Card {index + 1} file</li>);
+                                    }
+                                    const titleErrors = Array.isArray(error.title)
+                                        ? (error.title as Array<{ message?: string } | undefined>)
+                                        : [];
+                                    titleErrors.forEach((titleError, titleIndex) => {
+                                        if (titleError) {
+                                            items.push(
+                                                <li key={`events-hero-title-${index}-${titleIndex}`}>
+                                                    Card {index + 1} title {titleIndex + 1}
+                                                </li>
+                                            );
+                                        }
+                                    });
+                                    if (error.description) {
+                                        items.push(
+                                            <li key={`events-hero-description-${index}`}>Card {index + 1} description</li>
+                                        );
+                                    }
+                                    return items;
+                                })}
+                            </ul>
+                        </div>
+                    ) : null}
                     <Button
                         type="submit"
                         className="w-full bg-white/90 text-black hover:bg-white"

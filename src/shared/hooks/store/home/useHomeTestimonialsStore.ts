@@ -33,7 +33,7 @@ export const useHomeTestimonialsStore = create<TestimonialsState>((set, get) => 
                 cache: "no-store",
                 headers: getAuthHeaders(),
             });
-            const payload = await parseApiResponse<TestimonialPayload[]>(response, { showToast: false });
+            const payload = await parseApiResponse<TestimonialPayload[]>(response, { showToast: false, allowNotFound: true });
             set((state) => ({
                 data: {
                     ...state.data,

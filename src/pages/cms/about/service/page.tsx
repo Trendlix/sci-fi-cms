@@ -1,4 +1,4 @@
-import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldContent, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import BasicRichEditor from "@/components/tiptap/BasicRichEditor";
 import { Button } from "@/components/ui/button";
@@ -102,11 +102,11 @@ const AboutService = () => {
                     <CommonLanguageSwitcherCheckbox />
                     <div className="space-y-1 text-white">
                         <h1 className="text-2xl font-semibold text-white">Service Section</h1>
-                        <p className="text-sm text-white/70">Add service cards</p>
+                        <p className="text-sm text-white/70">Add service cards (at least 1 required)</p>
                     </div>
                     <Field>
                         <FieldLabel htmlFor="service-description" className="text-white/80">
-                            Description <span className="text-white">*</span>
+                            Description <span className="text-white">*</span> (at least 10 characters)
                         </FieldLabel>
                         <FieldContent>
                             <BasicRichEditor
@@ -116,7 +116,6 @@ const AboutService = () => {
                                     serviceForm.setValue("description", value ?? "", { shouldValidate: true })
                                 }
                             />
-                            <FieldError errors={[serviceForm.formState.errors.description]} />
                         </FieldContent>
                     </Field>
                     <div className="space-y-6">
@@ -136,7 +135,7 @@ const AboutService = () => {
                                 <FieldGroup className="grid gap-4 md:grid-cols-2">
                                     <Field>
                                         <FieldLabel htmlFor={`service-tag-${index}`} className="text-white/80">
-                                            Tag <span className="text-white">*</span>
+                                            Tag <span className="text-white">*</span> (at least 3 characters)
                                         </FieldLabel>
                                         <FieldContent>
                                             <Input
@@ -145,12 +144,11 @@ const AboutService = () => {
                                                 className="border-white/500 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
                                                 {...serviceForm.register(`cards.${index}.tag`)}
                                             />
-                                            <FieldError errors={[serviceForm.formState.errors.cards?.[index]?.tag]} />
                                         </FieldContent>
                                     </Field>
                                     <Field>
                                         <FieldLabel htmlFor={`service-icon-${index}`} className="text-white/80">
-                                            Icon <span className="text-white">*</span>
+                                            Icon <span className="text-white">*</span> (required)
                                         </FieldLabel>
                                         <FieldContent>
                                             <Input
@@ -159,12 +157,11 @@ const AboutService = () => {
                                                 className="border-white/500 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
                                                 {...serviceForm.register(`cards.${index}.icon`)}
                                             />
-                                            <FieldError errors={[serviceForm.formState.errors.cards?.[index]?.icon]} />
                                         </FieldContent>
                                     </Field>
                                     <Field>
                                         <FieldLabel htmlFor={`service-title-${index}`} className="text-white/80">
-                                            Title <span className="text-white">*</span>
+                                            Title <span className="text-white">*</span> (at least 3 characters)
                                         </FieldLabel>
                                         <FieldContent>
                                             <Input
@@ -173,12 +170,11 @@ const AboutService = () => {
                                                 className="border-white/500 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
                                                 {...serviceForm.register(`cards.${index}.title`)}
                                             />
-                                            <FieldError errors={[serviceForm.formState.errors.cards?.[index]?.title]} />
                                         </FieldContent>
                                     </Field>
                                     <Field className="md:col-span-2">
                                         <FieldLabel htmlFor={`service-description-${index}`} className="text-white/80">
-                                            Description <span className="text-white">*</span>
+                                            Description <span className="text-white">*</span> (at least 10 characters)
                                         </FieldLabel>
                                         <FieldContent>
                                             <BasicRichEditor
@@ -188,7 +184,6 @@ const AboutService = () => {
                                                     serviceForm.setValue(`cards.${index}.description`, value ?? "", { shouldValidate: true })
                                                 }
                                             />
-                                            <FieldError errors={[serviceForm.formState.errors.cards?.[index]?.description]} />
                                         </FieldContent>
                                     </Field>
                                 </FieldGroup>
@@ -202,6 +197,44 @@ const AboutService = () => {
                     >
                         Add card
                     </Button>
+                    {serviceForm.formState.isSubmitted &&
+                        (Array.isArray(serviceForm.formState.errors.cards)
+                            ? serviceForm.formState.errors.cards.some(Boolean)
+                            : !!serviceForm.formState.errors.cards ||
+                            !!serviceForm.formState.errors.description) ? (
+                        <div className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
+                            <p className="font-medium">Please fix the following fields:</p>
+                            <ul className="mt-2 list-disc pl-5">
+                                {serviceForm.formState.errors.description ? <li>Description</li> : null}
+                                {(Array.isArray(serviceForm.formState.errors.cards)
+                                    ? serviceForm.formState.errors.cards
+                                    : []
+                                ).map((error, index) => {
+                                    if (!error) {
+                                        return null;
+                                    }
+                                    const items = [];
+                                    if (error.tag) {
+                                        items.push(<li key={`service-card-tag-${index}`}>Card {index + 1} tag</li>);
+                                    }
+                                    if (error.icon) {
+                                        items.push(<li key={`service-card-icon-${index}`}>Card {index + 1} icon</li>);
+                                    }
+                                    if (error.title) {
+                                        items.push(<li key={`service-card-title-${index}`}>Card {index + 1} title</li>);
+                                    }
+                                    if (error.description) {
+                                        items.push(
+                                            <li key={`service-card-description-${index}`}>
+                                                Card {index + 1} description
+                                            </li>
+                                        );
+                                    }
+                                    return items;
+                                })}
+                            </ul>
+                        </div>
+                    ) : null}
                     <Button
                         type="submit"
                         className="w-full bg-white/90 text-black hover:bg-white"

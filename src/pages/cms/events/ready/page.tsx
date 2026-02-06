@@ -1,4 +1,4 @@
-import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldContent, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import BasicRichEditor from "@/components/tiptap/BasicRichEditor";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,9 @@ const EventsReady = () => {
 
     const cardsValue = useWatch({ control: readyForm.control, name: "cards" });
     const descriptionValue = useWatch({ control: readyForm.control, name: "description" });
+    const { errors, isSubmitted } = readyForm.formState;
+    const cardErrors = Array.isArray(errors.cards) ? errors.cards : [];
+    const hasSubmitErrors = cardErrors.some(Boolean) || !!errors.description;
 
     useEffect(() => {
         let isActive = true;
@@ -97,14 +100,13 @@ const EventsReady = () => {
                 </div>
                 <Field>
                     <FieldLabel htmlFor="events-ready-description" className="text-white/80">
-                        Description <span className="text-white">*</span>
+                        Description <span className="text-white">*</span> (required)
                     </FieldLabel>
                     <FieldContent>
                         <BasicRichEditor
                             name="description"
                             value={descriptionValue ?? ""}
                         />
-                        <FieldError errors={[readyForm.formState.errors.description]} />
                     </FieldContent>
                 </Field>
                 <div className="space-y-6">
@@ -114,7 +116,7 @@ const EventsReady = () => {
                             <FieldGroup className="grid gap-4 md:grid-cols-3">
                                 <Field>
                                     <FieldLabel htmlFor={`events-ready-icon-${index}`} className="text-white/80">
-                                        Icon <span className="text-white">*</span>
+                                        Icon <span className="text-white">*</span> (required)
                                     </FieldLabel>
                                     <FieldContent>
                                         <Input
@@ -123,12 +125,11 @@ const EventsReady = () => {
                                             className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
                                             {...readyForm.register(`cards.${index}.icon`)}
                                         />
-                                        <FieldError errors={[readyForm.formState.errors.cards?.[index]?.icon]} />
                                     </FieldContent>
                                 </Field>
                                 <Field>
                                     <FieldLabel htmlFor={`events-ready-no-${index}`} className="text-white/80">
-                                        No <span className="text-white">*</span>
+                                        No <span className="text-white">*</span> (at least 1)
                                     </FieldLabel>
                                     <FieldContent>
                                         <Input
@@ -138,12 +139,11 @@ const EventsReady = () => {
                                             className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
                                             {...readyForm.register(`cards.${index}.no`, { valueAsNumber: true })}
                                         />
-                                        <FieldError errors={[readyForm.formState.errors.cards?.[index]?.no]} />
                                     </FieldContent>
                                 </Field>
                                 <Field>
                                     <FieldLabel htmlFor={`events-ready-title-${index}`} className="text-white/80">
-                                        Title <span className="text-white">*</span>
+                                        Title <span className="text-white">*</span> (required)
                                     </FieldLabel>
                                     <FieldContent>
                                         <Input
@@ -152,13 +152,36 @@ const EventsReady = () => {
                                             className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
                                             {...readyForm.register(`cards.${index}.title`)}
                                         />
-                                        <FieldError errors={[readyForm.formState.errors.cards?.[index]?.title]} />
                                     </FieldContent>
                                 </Field>
                             </FieldGroup>
                         </div>
                     ))}
                 </div>
+                {isSubmitted && hasSubmitErrors ? (
+                    <div className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
+                        <p className="font-medium">Please fix the following fields:</p>
+                        <ul className="mt-2 list-disc pl-5">
+                            {errors.description ? <li>Description</li> : null}
+                            {cardErrors.map((error, index) => {
+                                if (!error) {
+                                    return null;
+                                }
+                                const items = [];
+                                if (error.icon) {
+                                    items.push(<li key={`events-ready-icon-${index}`}>Card {index + 1} icon</li>);
+                                }
+                                if (error.no) {
+                                    items.push(<li key={`events-ready-no-${index}`}>Card {index + 1} no</li>);
+                                }
+                                if (error.title) {
+                                    items.push(<li key={`events-ready-title-${index}`}>Card {index + 1} title</li>);
+                                }
+                                return items;
+                            })}
+                        </ul>
+                    </div>
+                ) : null}
                 <Button
                     type="submit"
                     className="w-full bg-white/90 text-black hover:bg-white"

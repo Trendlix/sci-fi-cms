@@ -47,11 +47,19 @@ const resolveMessage = (payload: Partial<AccountResponse> | null, fallback: stri
     return message && message.length > 0 ? message : fallback;
 };
 
+const isActiveStatus = (status?: string | null) => status?.toLowerCase() === "active";
+
+const clearAuthCookies = () => {
+    Cookies.remove("sci_fi_auth_token");
+    Cookies.remove("sci_fi_auth_user");
+    Cookies.remove("auth_token");
+};
+
 const setAuthCookies = (payload: AccountResponse) => {
     const token = payload.data?.token;
     const userName = payload.data?.user_name;
     const status = payload.data?.status;
-    if (!token || !userName || !status) {
+    if (!token || !userName || !status || !isActiveStatus(status)) {
         return;
     }
     const secure = typeof window !== "undefined" && window.location.protocol === "https:";
@@ -87,6 +95,20 @@ export const useAuth = create<AuthState>((set) => ({
         if (!response.ok || !payload.ok) {
             const message = resolveMessage(payload, "Failed to process account request.");
             set({ status: "error", error: message });
+            toastHelper(message, "error");
+            throw new Error(message);
+        }
+
+        if (!isActiveStatus(payload.data?.status)) {
+            const message = resolveMessage(payload, "Account is inactive.");
+            clearAuthCookies();
+            set({
+                status: "error",
+                error: message,
+                token: null,
+                userName: null,
+                accountStatus: payload.data?.status ?? null,
+            });
             toastHelper(message, "error");
             throw new Error(message);
         }

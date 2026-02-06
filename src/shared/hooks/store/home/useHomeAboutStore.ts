@@ -24,7 +24,7 @@ export const useHomeAboutStore = create<AboutState>((set) => ({
                 cache: "no-store",
                 headers: getAuthHeaders(),
             });
-            const payload = await parseApiResponse<AboutPayload>(response, { showToast: false });
+            const payload = await parseApiResponse<AboutPayload>(response, { showToast: false, allowNotFound: true });
             set((state) => ({
                 data: {
                     ...state.data,

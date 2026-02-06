@@ -1,4 +1,4 @@
-import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldContent, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import BasicRichEditor from "@/components/tiptap/BasicRichEditor";
 import { Button } from "@/components/ui/button";
@@ -111,7 +111,7 @@ const CardFields = ({ index, form, watchedCards, isRemoveDisabled, onRemove }: C
             <FieldGroup>
                 <Field>
                     <FieldLabel htmlFor={`card-type-${index}`} className="text-white/80">
-                        Type <span className="text-white">*</span>
+                        Type <span className="text-white">*</span> (required)
                     </FieldLabel>
                     <FieldContent>
                         <Controller
@@ -144,12 +144,11 @@ const CardFields = ({ index, form, watchedCards, isRemoveDisabled, onRemove }: C
                                 </Select>
                             )}
                         />
-                        <FieldError errors={[form.formState.errors.getInTouch?.cards?.[index]?.type]} />
                     </FieldContent>
                 </Field>
                 <Field>
                     <FieldLabel htmlFor={`card-line-1-${index}`} className="text-white/80">
-                        Line 1 <span className="text-white">*</span>
+                        Line 1 <span className="text-white">*</span> (required)
                     </FieldLabel>
                     <FieldContent>
                         <Input
@@ -158,13 +157,12 @@ const CardFields = ({ index, form, watchedCards, isRemoveDisabled, onRemove }: C
                             className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
                             {...form.register(`getInTouch.cards.${index}.lines.0`)}
                         />
-                        <FieldError errors={[form.formState.errors.getInTouch?.cards?.[index]?.lines?.[0]]} />
                     </FieldContent>
                 </Field>
                 {hasSecondLine ? (
                     <Field>
                         <FieldLabel htmlFor={`card-line-2-${index}`} className="text-white/80">
-                            Line 2 <span className="text-white">*</span>
+                            Line 2 <span className="text-white">*</span> (required)
                         </FieldLabel>
                         <FieldContent>
                             <Input
@@ -173,7 +171,6 @@ const CardFields = ({ index, form, watchedCards, isRemoveDisabled, onRemove }: C
                                 className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
                                 {...form.register(`getInTouch.cards.${index}.lines.1`)}
                             />
-                            <FieldError errors={[form.formState.errors.getInTouch?.cards?.[index]?.lines?.[1]]} />
                         </FieldContent>
                     </Field>
                 ) : (
@@ -218,14 +215,13 @@ const GetInTouchSection = ({ form, cardsFields, watchedCards }: GetInTouchSectio
 
             <Field>
                 <FieldLabel htmlFor="get-in-touch-description" className="text-white/80">
-                    Description <span className="text-white">*</span>
+                    Description <span className="text-white">*</span> (at least 10 characters)
                 </FieldLabel>
                 <FieldContent>
                     <BasicRichEditor
                         name="getInTouch.description"
                         value={descriptionValue ?? ""}
                     />
-                    <FieldError errors={[form.formState.errors.getInTouch?.description]} />
                 </FieldContent>
             </Field>
 
@@ -268,14 +264,13 @@ const HeroSection = ({ form }: HeroSectionProps) => {
             <h2 className="text-lg font-semibold text-white">Hero</h2>
             <Field>
                 <FieldLabel htmlFor="hero-description" className="text-white/80">
-                    Description <span className="text-white">*</span>
+                    Description <span className="text-white">*</span> (at least 10 characters)
                 </FieldLabel>
                 <FieldContent>
                     <BasicRichEditor
                         name="hero.description"
                         value={descriptionValue ?? ""}
                     />
-                    <FieldError errors={[form.formState.errors.hero?.description]} />
                 </FieldContent>
             </Field>
         </div>
@@ -347,6 +342,9 @@ const ContactPage = () => {
         control: contactForm.control,
         name: "getInTouch.cards",
     });
+    const { errors, isSubmitted } = contactForm.formState;
+    const cardErrors = Array.isArray(errors.getInTouch?.cards) ? errors.getInTouch?.cards : [];
+    const hasSubmitErrors = cardErrors.some(Boolean) || !!errors.hero?.description || !!errors.getInTouch?.description;
 
     useEffect(() => {
         let isActive = true;
@@ -415,6 +413,37 @@ const ContactPage = () => {
                         cardsFields={cardsFields}
                         watchedCards={watchedCards}
                     />
+                    {isSubmitted && hasSubmitErrors ? (
+                        <div className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
+                            <p className="font-medium">Please fix the following fields:</p>
+                            <ul className="mt-2 list-disc pl-5">
+                                {errors.hero?.description ? <li>Hero description</li> : null}
+                                {errors.getInTouch?.description ? <li>Get in Touch description</li> : null}
+                                {cardErrors.map((error, index) => {
+                                    if (!error) {
+                                        return null;
+                                    }
+                                    const items = [];
+                                    if (error.type) {
+                                        items.push(<li key={`contact-card-type-${index}`}>Card {index + 1} type</li>);
+                                    }
+                                    if (Array.isArray(error.lines)) {
+                                        // @ts-expect-error
+                                        error.lines.forEach((lineError, lineIndex) => {
+                                            if (lineError) {
+                                                items.push(
+                                                    <li key={`contact-card-line-${index}-${lineIndex}`}>
+                                                        Card {index + 1} line {lineIndex + 1}
+                                                    </li>
+                                                );
+                                            }
+                                        });
+                                    }
+                                    return items;
+                                })}
+                            </ul>
+                        </div>
+                    ) : null}
                     <SaveButton
                         isDisabled={getLoading || updateLoading}
                         isLoading={updateLoading}

@@ -1,4 +1,4 @@
-import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldContent, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import BasicRichEditor from "@/components/tiptap/BasicRichEditor";
 import { Button } from "@/components/ui/button";
@@ -76,6 +76,8 @@ const AboutHero = () => {
     };
 
     const showLoading = getLoading || isInitialLoad;
+    const { errors, isSubmitted } = heroForm.formState;
+    const titleErrors = Array.isArray(errors.title) ? errors.title : [];
 
     return (
         <FormProvider {...heroForm}>
@@ -92,7 +94,7 @@ const AboutHero = () => {
                         {Array.from({ length: 6 }).map((_, index) => (
                             <Field key={`about-hero-title-${index}`}>
                                 <FieldLabel htmlFor={`about-hero-title-${index}`} className="text-white/80">
-                                    Title chunk {index + 1} <span className="text-white">*</span>
+                                    Title chunk {index + 1} <span className="text-white">*</span> (required)
                                 </FieldLabel>
                                 <FieldContent>
                                     <Input
@@ -101,21 +103,29 @@ const AboutHero = () => {
                                         className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
                                         {...heroForm.register(`title.${index}`)}
                                     />
-                                    <FieldError errors={[heroForm.formState.errors.title?.[index]]} />
                                 </FieldContent>
                             </Field>
                         ))}
                     </FieldGroup>
-                    <FieldError errors={[heroForm.formState.errors.title as { message?: string } | undefined]} />
                     <Field>
                         <FieldLabel htmlFor="about-hero-description" className="text-white/80">
-                            Description <span className="text-white">*</span>
+                            Description <span className="text-white">*</span> (at least 10 characters)
                         </FieldLabel>
                         <FieldContent>
                             <BasicRichEditor name="description" value={descriptionValue ?? ""} />
-                            <FieldError errors={[heroForm.formState.errors.description]} />
                         </FieldContent>
                     </Field>
+                    {isSubmitted && (titleErrors.some(Boolean) || !!errors.description) ? (
+                        <div className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
+                            <p className="font-medium">Please fix the following fields:</p>
+                            <ul className="mt-2 list-disc pl-5">
+                                {titleErrors.map((error, index) =>
+                                    error ? <li key={`about-hero-title-error-${index}`}>Title chunk {index + 1}</li> : null
+                                )}
+                                {errors.description ? <li>Description</li> : null}
+                            </ul>
+                        </div>
+                    ) : null}
                     <Button
                         type="submit"
                         className="w-full bg-white/90 text-black hover:bg-white"

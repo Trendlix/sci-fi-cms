@@ -1,4 +1,4 @@
-import { Field, FieldContent, FieldError, FieldLabel } from "@/components/ui/field";
+import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import BasicRichEditor from "@/components/tiptap/BasicRichEditor";
 import { Button } from "@/components/ui/button";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -147,6 +147,10 @@ const EventPartners = () => {
     });
     const watchedFiles = useWatch({ control: partnersForm.control, name: "files" }) ?? [];
     const descriptionValue = useWatch({ control: partnersForm.control, name: "description" });
+    const { errors, isSubmitted } = partnersForm.formState;
+    const fileErrors = Array.isArray(errors.files) ? errors.files : [];
+    const filesRootMessage = !Array.isArray(errors.files) ? errors.files?.message : undefined;
+    const hasSubmitErrors = fileErrors.some(Boolean) || !!errors.description || !!errors.files;
 
     useEffect(() => {
         let isActive = true;
@@ -200,19 +204,18 @@ const EventPartners = () => {
                 </div>
                 <Field>
                     <FieldLabel htmlFor="events-partners-description" className="text-white/80">
-                        Description <span className="text-white">*</span>
+                        Description <span className="text-white">*</span> (at least 10 characters)
                     </FieldLabel>
                     <FieldContent>
                         <BasicRichEditor
                             name="description"
                             value={descriptionValue ?? ""}
                         />
-                        <FieldError errors={[partnersForm.formState.errors.description]} />
                     </FieldContent>
                 </Field>
                 <Field>
                     <FieldLabel htmlFor="events-partners-upload" className="text-white/80">
-                        Partner Logos <span className="text-white">*</span>
+                        Partner logos <span className="text-white">*</span> (required)
                     </FieldLabel>
                     <FieldContent>
                         <div className="space-y-4">
@@ -247,7 +250,6 @@ const EventPartners = () => {
                                     }}
                                 />
                             </div>
-                            <FieldError errors={[partnersForm.formState.errors.files as { message?: string } | undefined]} />
                             {fileFields.fields.length ? (
                                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                                     {fileFields.fields.map((field, index) => (
@@ -274,6 +276,18 @@ const EventPartners = () => {
                         </div>
                     </FieldContent>
                 </Field>
+                {isSubmitted && hasSubmitErrors ? (
+                    <div className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
+                        <p className="font-medium">Please fix the following fields:</p>
+                        <ul className="mt-2 list-disc pl-5">
+                            {errors.description ? <li>Description</li> : null}
+                            {fileErrors.map((error, index) =>
+                                error ? <li key={`events-partners-file-${index}`}>Partner logo {index + 1}</li> : null
+                            )}
+                            {filesRootMessage ? <li>{filesRootMessage}</li> : null}
+                        </ul>
+                    </div>
+                ) : null}
                 <Button
                     type="submit"
                     className="w-full bg-white/90 text-black hover:bg-white"

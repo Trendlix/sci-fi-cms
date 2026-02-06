@@ -1,4 +1,4 @@
-import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldContent, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import BasicRichEditor from "@/components/tiptap/BasicRichEditor";
 import { Button } from "@/components/ui/button";
@@ -123,7 +123,7 @@ type HighlightsListProps = {
 };
 
 const HighlightsList = ({ cardIndex }: HighlightsListProps) => {
-    const { control, register, formState } = useFormContext<EventFeaturedFormValues>();
+    const { control, register } = useFormContext<EventFeaturedFormValues>();
     const highlightsFieldArray = useFieldArray({
         control,
         name: `cards.${cardIndex}.highlights`,
@@ -139,7 +139,6 @@ const HighlightsList = ({ cardIndex }: HighlightsListProps) => {
                             className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
                             {...register(`cards.${cardIndex}.highlights.${index}.value`)}
                         />
-                        <FieldError errors={[formState.errors.cards?.[cardIndex]?.highlights?.[index]?.value]} />
                     </div>
                     <Button
                         type="button"
@@ -179,6 +178,9 @@ const EventsFeatured = () => {
 
     const cardsValue = useWatch({ control: featuredForm.control, name: "cards" });
     const descriptionValue = useWatch({ control: featuredForm.control, name: "description" });
+    const { errors, isSubmitted } = featuredForm.formState;
+    const cardErrors = Array.isArray(errors.cards) ? errors.cards : [];
+    const hasSubmitErrors = cardErrors.some(Boolean) || !!errors.description;
 
     const cardFields = useFieldArray({
         control: featuredForm.control,
@@ -224,6 +226,22 @@ const EventsFeatured = () => {
     const toList = (items: { value: string }[]) => items.map((item) => item.value.trim()).filter(Boolean);
 
     const onSubmit = async (formData: EventFeaturedFormValues) => {
+        const missingFiles: number[] = [];
+        formData.cards.forEach((card, index) => {
+            const hasExisting = !!currentData?.cards?.[index]?.file?.url;
+            if (!card.fileFile && !hasExisting) {
+                missingFiles.push(index);
+            }
+        });
+        if (missingFiles.length > 0) {
+            missingFiles.forEach((index) => {
+                featuredForm.setError(`cards.${index}.fileFile`, {
+                    type: "manual",
+                    message: "File is required",
+                });
+            });
+            return;
+        }
         await update({
             description: formData.description,
             cards: formData.cards.map((card) => ({
@@ -234,6 +252,27 @@ const EventsFeatured = () => {
                 highlights: toList(card.highlights),
             })),
         });
+        const refreshed = await get().catch(() => null);
+        if (!refreshed) {
+            featuredForm.reset({ description: "", cards: [defaultCard] });
+            setCurrentData(null);
+            return;
+        }
+        setCurrentData(refreshed);
+        featuredForm.reset({
+            description: refreshed.description ?? "",
+            cards: refreshed.cards?.length
+                ? refreshed.cards.map((card) => ({
+                    fileFile: undefined,
+                    tag: card.tag ?? "",
+                    title: card.title ?? "",
+                    description: card.description ?? "",
+                    highlights: card.highlights?.length
+                        ? card.highlights.map((value) => ({ value }))
+                        : defaultHighlights(),
+                }))
+                : [defaultCard],
+        });
     };
 
     return (
@@ -242,116 +281,150 @@ const EventsFeatured = () => {
                 <LoadingSkeleton isRtl={isRtl} />
             ) : (
                 <form onSubmit={featuredForm.handleSubmit(onSubmit)} className={cn("space-y-4", isRtl && "home-rtl")}>
-                <CommonLanguageSwitcherCheckbox />
-                <div className="space-y-1 text-white">
-                    <h1 className="text-2xl font-semibold text-white">Events Featured</h1>
-                    <p className="text-sm text-white/70">Add description and cards</p>
-                </div>
-                <Field>
-                    <FieldLabel htmlFor="events-featured-description" className="text-white/80">
-                        Description <span className="text-white">*</span>
-                    </FieldLabel>
-                    <FieldContent>
-                        <BasicRichEditor
-                            name="description"
-                            value={descriptionValue ?? ""}
-                        />
-                        <FieldError errors={[featuredForm.formState.errors.description]} />
-                    </FieldContent>
-                </Field>
-                <div className="space-y-6">
-                    {cardFields.fields.map((field, index) => (
-                        <div key={field.id} className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
-                            <div className="flex items-center justify-between">
-                                <h2 className="text-lg font-semibold text-white">Card {index + 1}</h2>
-                                <Button
-                                    type="button"
-                                    className="bg-white/10 text-white hover:bg-white/20"
-                                    disabled={cardFields.fields.length <= 1}
-                                    onClick={() => cardFields.remove(index)}
-                                >
-                                    Remove card
-                                </Button>
+                    <CommonLanguageSwitcherCheckbox />
+                    <div className="space-y-1 text-white">
+                        <h1 className="text-2xl font-semibold text-white">Events Featured</h1>
+                        <p className="text-sm text-white/70">Add description and cards</p>
+                    </div>
+                    <Field>
+                        <FieldLabel htmlFor="events-featured-description" className="text-white/80">
+                            Description <span className="text-white">*</span> (required)
+                        </FieldLabel>
+                        <FieldContent>
+                            <BasicRichEditor
+                                name="description"
+                                value={descriptionValue ?? ""}
+                            />
+                        </FieldContent>
+                    </Field>
+                    <div className="space-y-6">
+                        {cardFields.fields.map((field, index) => (
+                            <div key={field.id} className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-lg font-semibold text-white">Card {index + 1}</h2>
+                                    <Button
+                                        type="button"
+                                        className="bg-white/10 text-white hover:bg-white/20"
+                                        disabled={cardFields.fields.length <= 1}
+                                        onClick={() => cardFields.remove(index)}
+                                    >
+                                        Remove card
+                                    </Button>
+                                </div>
+                                <Field>
+                                    <FieldLabel className="text-white/80">
+                                        File <span className="text-white">*</span> (required)
+                                    </FieldLabel>
+                                    <FieldContent>
+                                        <CardFileUploader
+                                            control={featuredForm.control}
+                                            name={`cards.${index}.fileFile`}
+                                            inputId={`events-featured-file-${index}`}
+                                            existingUrl={currentData?.cards?.[index]?.file?.url}
+                                        />
+                                    </FieldContent>
+                                </Field>
+                                <FieldGroup className="grid gap-4 md:grid-cols-2">
+                                    <Field>
+                                        <FieldLabel htmlFor={`events-featured-tag-${index}`} className="text-white/80">
+                                            Tag <span className="text-white">*</span> (required)
+                                        </FieldLabel>
+                                        <FieldContent>
+                                            <Input
+                                                id={`events-featured-tag-${index}`}
+                                                placeholder="Enter tag"
+                                                className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                                {...featuredForm.register(`cards.${index}.tag`)}
+                                            />
+                                        </FieldContent>
+                                    </Field>
+                                    <Field>
+                                        <FieldLabel htmlFor={`events-featured-title-${index}`} className="text-white/80">
+                                            Title <span className="text-white">*</span> (required)
+                                        </FieldLabel>
+                                        <FieldContent>
+                                            <Input
+                                                id={`events-featured-title-${index}`}
+                                                placeholder="Enter title"
+                                                className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                                {...featuredForm.register(`cards.${index}.title`)}
+                                            />
+                                        </FieldContent>
+                                    </Field>
+                                </FieldGroup>
+                                <Field>
+                                    <FieldLabel className="text-white/80">
+                                        Description <span className="text-white">*</span> (at least 10 characters)
+                                    </FieldLabel>
+                                    <FieldContent>
+                                        <BasicRichEditor
+                                            name={`cards.${index}.description`}
+                                            value={cardsValue?.[index]?.description ?? ""}
+                                        />
+                                    </FieldContent>
+                                </Field>
+                                <Field>
+                                    <FieldLabel className="text-white/80">Highlights <span className="text-white">*</span> (at least 1)</FieldLabel>
+                                    <FieldContent>
+                                        <HighlightsList cardIndex={index} />
+                                    </FieldContent>
+                                </Field>
                             </div>
-                            <Field>
-                                <FieldLabel className="text-white/80">
-                                    File <span className="text-white">*</span>
-                                </FieldLabel>
-                                <FieldContent>
-                                    <CardFileUploader
-                                        control={featuredForm.control}
-                                        name={`cards.${index}.fileFile`}
-                                        inputId={`events-featured-file-${index}`}
-                                        existingUrl={currentData?.cards?.[index]?.file?.url}
-                                    />
-                                    <FieldError errors={[featuredForm.formState.errors.cards?.[index]?.fileFile]} />
-                                </FieldContent>
-                            </Field>
-                            <FieldGroup className="grid gap-4 md:grid-cols-2">
-                                <Field>
-                                    <FieldLabel htmlFor={`events-featured-tag-${index}`} className="text-white/80">
-                                        Tag <span className="text-white">*</span>
-                                    </FieldLabel>
-                                    <FieldContent>
-                                        <Input
-                                            id={`events-featured-tag-${index}`}
-                                            placeholder="Enter tag"
-                                            className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                                            {...featuredForm.register(`cards.${index}.tag`)}
-                                        />
-                                        <FieldError errors={[featuredForm.formState.errors.cards?.[index]?.tag]} />
-                                    </FieldContent>
-                                </Field>
-                                <Field>
-                                    <FieldLabel htmlFor={`events-featured-title-${index}`} className="text-white/80">
-                                        Title <span className="text-white">*</span>
-                                    </FieldLabel>
-                                    <FieldContent>
-                                        <Input
-                                            id={`events-featured-title-${index}`}
-                                            placeholder="Enter title"
-                                            className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
-                                            {...featuredForm.register(`cards.${index}.title`)}
-                                        />
-                                        <FieldError errors={[featuredForm.formState.errors.cards?.[index]?.title]} />
-                                    </FieldContent>
-                                </Field>
-                            </FieldGroup>
-                            <Field>
-                                <FieldLabel className="text-white/80">
-                                    Description <span className="text-white">*</span>
-                                </FieldLabel>
-                                <FieldContent>
-                                    <BasicRichEditor
-                                        name={`cards.${index}.description`}
-                                        value={cardsValue?.[index]?.description ?? ""}
-                                    />
-                                    <FieldError errors={[featuredForm.formState.errors.cards?.[index]?.description]} />
-                                </FieldContent>
-                            </Field>
-                            <Field>
-                                <FieldLabel className="text-white/80">Highlights</FieldLabel>
-                                <FieldContent>
-                                    <HighlightsList cardIndex={index} />
-                                </FieldContent>
-                            </Field>
+                        ))}
+                        <Button
+                            type="button"
+                            className="bg-white/10 text-white hover:bg-white/20"
+                            onClick={() => cardFields.append({ ...defaultCard })}
+                        >
+                            Add card
+                        </Button>
+                    </div>
+                    {isSubmitted && hasSubmitErrors ? (
+                        <div className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
+                            <p className="font-medium">Please fix the following fields:</p>
+                            <ul className="mt-2 list-disc pl-5">
+                                {errors.description ? <li>Description</li> : null}
+                                {cardErrors.map((error, index) => {
+                                    if (!error) {
+                                        return null;
+                                    }
+                                    const items = [];
+                                    if (error.fileFile) {
+                                        items.push(<li key={`events-featured-file-${index}`}>Card {index + 1} file</li>);
+                                    }
+                                    if (error.tag) {
+                                        items.push(<li key={`events-featured-tag-${index}`}>Card {index + 1} tag</li>);
+                                    }
+                                    if (error.title) {
+                                        items.push(<li key={`events-featured-title-${index}`}>Card {index + 1} title</li>);
+                                    }
+                                    if (error.description) {
+                                        items.push(<li key={`events-featured-description-${index}`}>Card {index + 1} description</li>);
+                                    }
+                                    if (Array.isArray(error.highlights)) {
+                                        // @ts-expect-error
+                                        error.highlights.forEach((highlightError, highlightIndex) => {
+                                            if (highlightError?.value) {
+                                                items.push(
+                                                    <li key={`events-featured-highlight-${index}-${highlightIndex}`}>
+                                                        Card {index + 1} highlight {highlightIndex + 1}
+                                                    </li>
+                                                );
+                                            }
+                                        });
+                                    }
+                                    return items;
+                                })}
+                            </ul>
                         </div>
-                    ))}
+                    ) : null}
                     <Button
-                        type="button"
-                        className="bg-white/10 text-white hover:bg-white/20"
-                        onClick={() => cardFields.append({ ...defaultCard })}
+                        type="submit"
+                        className="w-full bg-white/90 text-black hover:bg-white"
+                        disabled={getLoading || updateLoading}
                     >
-                        Add card
+                        {updateLoading ? "Saving..." : "Save"}
                     </Button>
-                </div>
-                <Button
-                    type="submit"
-                    className="w-full bg-white/90 text-black hover:bg-white"
-                    disabled={getLoading || updateLoading}
-                >
-                    {updateLoading ? "Saving..." : "Save"}
-                </Button>
                 </form>
             )}
         </FormProvider>

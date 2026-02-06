@@ -1,4 +1,4 @@
-import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldContent, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -21,13 +21,24 @@ const fileSchema = z.any().refine((file) => !file || file instanceof File, {
 export const TestimonialsZodValidationSchema = z.object({
     testimonials: z.array(
         z.object({
-            name: z.string().min(3, "Name is required"),
+            name: z
+                .string()
+                .trim()
+                .min(1, "Name is required")
+                .min(3, "Name must be at least 3 characters"),
             title: z.string().optional(),
-            message: z.string().min(10, "Message is required"),
-            rating: z.number().min(1).max(5),
+            message: z
+                .string()
+                .trim()
+                .min(1, "Message is required")
+                .min(10, "Message must be at least 10 characters"),
+            rating: z
+                .number()
+                .min(1, "Rating must be at least 1")
+                .max(5, "Rating must be 5 or less"),
             avatarFile: fileSchema.optional(),
         })
-    ).min(1),
+    ).min(1, "At least one testimonial is required"),
 })
 
 type TestimonialsFormValues = z.infer<typeof TestimonialsZodValidationSchema>;
@@ -171,6 +182,22 @@ const TestimonialsPage = () => {
     }, [get, language, reset, clearErrors]);
 
     const onSubmit = async (formData: TestimonialsFormValues) => {
+        const missingAvatars: number[] = [];
+        formData.testimonials.forEach((item, index) => {
+            const hasExistingAvatar = !!currentData?.[index]?.avatar?.url;
+            if (!item.avatarFile && !hasExistingAvatar) {
+                missingAvatars.push(index);
+            }
+        });
+        if (missingAvatars.length > 0) {
+            missingAvatars.forEach((index) => {
+                testimonialsForm.setError(`testimonials.${index}.avatarFile`, {
+                    type: "manual",
+                    message: "Avatar is required",
+                });
+            });
+            return;
+        }
         const payload = formData.testimonials.map((item) => ({
             name: item.name,
             title: item.title,
@@ -179,9 +206,27 @@ const TestimonialsPage = () => {
             avatarFile: item.avatarFile,
         }));
         await update(payload);
+        const refreshed = await get();
+        setCurrentData(refreshed ?? null);
+        if (!refreshed || refreshed.length === 0) {
+            reset({ testimonials: defaultTestimonials });
+            return;
+        }
+        reset({
+            testimonials: refreshed.map((item) => ({
+                name: item.name ?? "",
+                title: item.title ?? "",
+                message: item.message ?? "",
+                rating: item.rating ?? 5,
+                avatarFile: undefined,
+            })),
+        });
     }
 
     const showLoading = getLoading || isInitialLoad;
+    const { errors, isSubmitted } = testimonialsForm.formState;
+    const testimonialErrors = Array.isArray(errors.testimonials) ? errors.testimonials : [];
+    const testimonialsRootMessage = !Array.isArray(errors.testimonials) ? errors.testimonials?.message : undefined;
 
     return (
         <FormProvider {...testimonialsForm}>
@@ -220,21 +265,20 @@ const TestimonialsPage = () => {
                                                 inputId={`avatar-${index}`}
                                                 existingUrl={currentData?.[index]?.avatar?.url}
                                             />
-                                            <FieldError errors={[testimonialsForm.formState.errors.testimonials?.[index]?.avatarFile]} />
                                         </FieldContent>
                                     </Field>
                                     <Field>
                                         <FieldLabel htmlFor={`name-${index}`} className="text-white/80">
-                                            Name <span className="text-white">*</span>
+                                            Name <span className="text-white">*</span> (at least 3 characters)
                                         </FieldLabel>
                                         <FieldContent>
                                             <Input
                                                 id={`name-${index}`}
                                                 placeholder="Enter name"
                                                 className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                                required
                                                 {...testimonialsForm.register(`testimonials.${index}.name`)}
                                             />
-                                            <FieldError errors={[testimonialsForm.formState.errors.testimonials?.[index]?.name]} />
                                         </FieldContent>
                                     </Field>
                                     <Field>
@@ -252,7 +296,7 @@ const TestimonialsPage = () => {
                                     </Field>
                                     <Field className="md:col-span-2">
                                         <FieldLabel htmlFor={`rating-${index}`} className="text-white/80">
-                                            Rating (1-5) <span className="text-white">*</span>
+                                            Rating (1-5) <span className="text-white">*</span> (required)
                                         </FieldLabel>
                                         <FieldContent>
                                             <Input
@@ -261,29 +305,64 @@ const TestimonialsPage = () => {
                                                 min={1}
                                                 max={5}
                                                 className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                                required
                                                 {...testimonialsForm.register(`testimonials.${index}.rating`, { valueAsNumber: true })}
                                             />
-                                            <FieldError errors={[testimonialsForm.formState.errors.testimonials?.[index]?.rating]} />
                                         </FieldContent>
                                     </Field>
                                     <Field className="md:col-span-2">
                                         <FieldLabel htmlFor={`message-${index}`} className="text-white/80">
-                                            Message <span className="text-white">*</span>
+                                            Message <span className="text-white">*</span> (at least 10 characters)
                                         </FieldLabel>
                                         <FieldContent>
                                             <Textarea
                                                 id={`message-${index}`}
                                                 placeholder="Enter testimonial message"
                                                 className="min-h-24 border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
+                                                required
                                                 {...testimonialsForm.register(`testimonials.${index}.message`)}
                                             />
-                                            <FieldError errors={[testimonialsForm.formState.errors.testimonials?.[index]?.message]} />
                                         </FieldContent>
                                     </Field>
                                 </FieldGroup>
                             </div>
                         ))}
                     </div>
+                    {isSubmitted && (testimonialErrors.some(Boolean) || !!errors.testimonials) ? (
+                        <div className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
+                            <p className="font-medium">Please fix the following fields:</p>
+                            <ul className="mt-2 list-disc pl-5">
+                                {testimonialErrors.map((error, index) => {
+                                    if (!error) {
+                                        return null;
+                                    }
+                                    const items = [];
+                                    if (error.avatarFile) {
+                                        items.push(
+                                            <li key={`testimonial-avatar-error-${index}`}>Testimonial {index + 1} avatar</li>
+                                        );
+                                    }
+                                    if (error.name) {
+                                        items.push(
+                                            <li key={`testimonial-name-error-${index}`}>Testimonial {index + 1} name</li>
+                                        );
+                                    }
+                                    if (error.rating) {
+                                        items.push(
+                                            <li key={`testimonial-rating-error-${index}`}>Testimonial {index + 1} rating</li>
+                                        );
+                                    }
+                                    if (error.message) {
+                                        items.push(
+                                            <li key={`testimonial-message-error-${index}`}>Testimonial {index + 1} message</li>
+                                        );
+                                    }
+                                    return items;
+                                })}
+                                {testimonialsRootMessage ? <li>{testimonialsRootMessage}</li> : null}
+                            </ul>
+                        </div>
+                    ) : null}
                     <div className="flex flex-col gap-3 md:flex-row">
                         <Button
                             type="button"
@@ -303,7 +382,7 @@ const TestimonialsPage = () => {
                         <Button
                             type="submit"
                             className="flex-4 bg-white/90 text-black hover:bg-white"
-                            disabled={getLoading || updateLoading}
+                            disabled={getLoading || updateLoading || !testimonialsForm.formState.isDirty}
                         >
                             {updateLoading ? "Saving..." : "Save"}
                         </Button>

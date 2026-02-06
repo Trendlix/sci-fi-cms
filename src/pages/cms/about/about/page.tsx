@@ -1,4 +1,4 @@
-import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldContent, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import BasicRichEditor from "@/components/tiptap/BasicRichEditor";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ const fileSchema = z.any().refine((file) => !file || file instanceof File, {
 });
 
 const aboutCardSchema = z.object({
-    iconFile: fileSchema.optional(),
+    iconFile: fileSchema,
     title: z.string().min(1, "Title is required"),
     description: z.string().min(1, "Description is required"),
 });
@@ -161,7 +161,39 @@ const AboutAbout = () => {
     }, [get, language, aboutForm]);
 
     const onSubmit = async (formData: AboutSectionFormValues) => {
+        const missingIcons: number[] = [];
+        formData.cards.forEach((card, index) => {
+            const hasExisting = !!currentSection?.cards?.[index]?.icon?.url;
+            if (!card.iconFile && !hasExisting) {
+                missingIcons.push(index);
+            }
+        });
+        if (missingIcons.length > 0) {
+            missingIcons.forEach((index) => {
+                aboutForm.setError(`cards.${index}.iconFile`, {
+                    type: "manual",
+                    message: "Icon is required",
+                });
+            });
+            return;
+        }
         await update("about", formData);
+        const refreshed = await get("about") as AboutPayload["about"] | null;
+        setCurrentSection(refreshed ?? null);
+        if (!refreshed) {
+            aboutForm.reset({ description: "", cards: [defaultCard] });
+            return;
+        }
+        aboutForm.reset({
+            description: refreshed.description ?? "",
+            cards: refreshed.cards?.length
+                ? refreshed.cards.map((card) => ({
+                    iconFile: undefined,
+                    title: card.title ?? "",
+                    description: card.description ?? "",
+                }))
+                : [defaultCard],
+        });
     };
 
     return (
@@ -173,15 +205,14 @@ const AboutAbout = () => {
                     <CommonLanguageSwitcherCheckbox />
                     <div className="space-y-1 text-white">
                         <h1 className="text-2xl font-semibold text-white">About Section</h1>
-                        <p className="text-sm text-white/70">Add the description and cards</p>
+                        <p className="text-sm text-white/70">Add the description and cards (1-2 required)</p>
                     </div>
                     <Field>
                         <FieldLabel htmlFor="about-description" className="text-white/80">
-                            Description <span className="text-white">*</span>
+                            Description <span className="text-white">*</span> (at least 10 characters)
                         </FieldLabel>
                         <FieldContent>
                             <BasicRichEditor name="description" value={descriptionValue ?? ""} />
-                            <FieldError errors={[aboutForm.formState.errors.description]} />
                         </FieldContent>
                     </Field>
                     <div className="space-y-6">
@@ -201,7 +232,7 @@ const AboutAbout = () => {
                                 <FieldGroup>
                                     <Field>
                                         <FieldLabel htmlFor={`about-icon-${index}`} className="text-white/80">
-                                            Icon
+                                            Icon <span className="text-white">*</span> (required)
                                         </FieldLabel>
                                         <FieldContent>
                                             <IconUploader
@@ -210,12 +241,11 @@ const AboutAbout = () => {
                                                 inputId={`about-icon-${index}`}
                                                 existingUrl={currentSection?.cards?.[index]?.icon?.url}
                                             />
-                                            <FieldError errors={[aboutForm.formState.errors.cards?.[index]?.iconFile]} />
                                         </FieldContent>
                                     </Field>
                                     <Field>
                                         <FieldLabel htmlFor={`about-title-${index}`} className="text-white/80">
-                                            Title <span className="text-white">*</span>
+                                            Title <span className="text-white">*</span> (required)
                                         </FieldLabel>
                                         <FieldContent>
                                             <Input
@@ -224,19 +254,17 @@ const AboutAbout = () => {
                                                 className="border-white/20 bg-white/5 text-white placeholder:text-white/40 focus-visible:border-white/40"
                                                 {...aboutForm.register(`cards.${index}.title`)}
                                             />
-                                            <FieldError errors={[aboutForm.formState.errors.cards?.[index]?.title]} />
                                         </FieldContent>
                                     </Field>
                                     <Field className="md:col-span-2">
                                         <FieldLabel htmlFor={`about-description-${index}`} className="text-white/80">
-                                            Description <span className="text-white">*</span>
+                                            Description <span className="text-white">*</span> (required)
                                         </FieldLabel>
                                         <FieldContent>
                                             <BasicRichEditor
                                                 name={`cards.${index}.description`}
                                                 value={cardsValue?.[index]?.description ?? ""}
                                             />
-                                            <FieldError errors={[aboutForm.formState.errors.cards?.[index]?.description]} />
                                         </FieldContent>
                                     </Field>
                                 </FieldGroup>
@@ -251,6 +279,45 @@ const AboutAbout = () => {
                     >
                         Add card
                     </Button>
+                    {aboutForm.formState.isSubmitted &&
+                        (Array.isArray(aboutForm.formState.errors.cards)
+                            ? aboutForm.formState.errors.cards.some(Boolean)
+                            : !!aboutForm.formState.errors.cards ||
+                            !!aboutForm.formState.errors.description) ? (
+                        <div className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
+                            <p className="font-medium">Please fix the following fields:</p>
+                            <ul className="mt-2 list-disc pl-5">
+                                {aboutForm.formState.errors.description ? <li>Description</li> : null}
+                                {(Array.isArray(aboutForm.formState.errors.cards)
+                                    ? aboutForm.formState.errors.cards
+                                    : []
+                                ).map((error, index) => {
+                                    if (!error) {
+                                        return null;
+                                    }
+                                    const items = [];
+                                    if (error.iconFile) {
+                                        items.push(
+                                            <li key={`about-card-icon-${index}`}>Card {index + 1} icon</li>
+                                        );
+                                    }
+                                    if (error.title) {
+                                        items.push(
+                                            <li key={`about-card-title-${index}`}>Card {index + 1} title</li>
+                                        );
+                                    }
+                                    if (error.description) {
+                                        items.push(
+                                            <li key={`about-card-description-${index}`}>
+                                                Card {index + 1} description
+                                            </li>
+                                        );
+                                    }
+                                    return items;
+                                })}
+                            </ul>
+                        </div>
+                    ) : null}
                     <Button
                         type="submit"
                         className="w-full bg-white/90 text-black hover:bg-white"
